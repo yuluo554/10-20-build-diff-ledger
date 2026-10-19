@@ -1,0 +1,71 @@
+# ---- Go 标准模板 ----
+# 编译产物
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Go 工作区与调试
+go.work
+go.work.sum
+__debug_bin*
+*.pprof
+coverage.out
+coverage.html
+
+# 测试/构建缓存
+.cache/
+*.test.log
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 本项目：生成物与发布产物 ----
+# 样张生成器的输出目录（可由 tools/gen_fixtures 重建，不入仓）
+fixtures/out/
+data/fixtures/out/
+out/
+
+# 压缩包与归档（构建产物形态，勿入仓）
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.whl
+*.jar
+
+# 例外：样张与 golden 的输入归档必须入库（否则 golden 无法复验）
+!data/fixtures/**/*.tar
+!data/fixtures/**/*.tar.gz
+!data/fixtures/**/*.zip
+!data/fixtures/**/*.whl
+!data/fixtures/**/*.jar
+
+# 本地生成的对比报告（由 CLI 复算可得，不入仓）
+report.json
+report.md
+*.report.json
+
+# 发布产物本地副本（发布时手工上传 Release，不入仓）
+dist-release/
+release/
+
+# ---- 说明 ----
+# 1) 唯一允许入库的归档是 data/fixtures/ 下由 tools/gen_fixtures 程序化合成的样张；
+#    任何来自真实发行版或真实构建的归档一律禁止提交。
+# 2) 编译产物（单二进制）不入仓，发布时作为 Release 附件手工上传，并在 plan/RELEASE-M6.md 记录 sha256。
