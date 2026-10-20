@@ -5,12 +5,11 @@
 // 手写 512 字节块让"注入了什么"与"写进文件的字节"一一对应，便于 README 手工复现。
 //
 // gzip 同理：XFL/OS 是 T6 的被测字段，compress/gzip 的 Writer 取不到（它从
-// level 推 XFL、OS 写死 255），所以这里直接写成员头 + compress/flate 流。
+// level 推 XFL、OS 写死 255），所以这里直接写成员头 + 手写 stored deflate 流。
 package main
 
 import (
 	"bytes"
-	"compress/flate"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -200,7 +199,6 @@ type gzipParams struct {
 	XFL    byte  // 2 = 最大压缩，4 = 最快
 	OS     byte  // 3 = Unix，255 = unknown
 	MTime  int64 // 0 = 未设置
-	Level  int   // flate 压缩级别（与 XFL 解耦：样张只改头字段）
 	NoName bool  // 始终 true：不写 FNAME，避免路径泄漏
 }
 
@@ -224,27 +222,58 @@ func writeTarGz(w io.Writer, entries []tarEntry, p gzipParams) error {
 		return err
 	}
 
-	level := p.Level
-	if level == 0 {
-		// HuffmanOnly：只做哈夫曼编码、不做 LZ77 匹配搜索——输出字节流不依赖
-		// Go 标准库 flate 的匹配启发式，跨 Go 版本稳定（R9 预案；plan/06）。
-		// 样张只关心 gzip 头字段（T6）与解压后的 tar 字节，压缩率无关紧要。
-		level = flate.HuffmanOnly
-	}
-	fw, err := flate.NewWriter(w, level)
-	if err != nil {
-		return err
-	}
-	if _, err := fw.Write(payload); err != nil {
-		return err
-	}
-	if err := fw.Close(); err != nil {
+	// deflate 块：不用 compress/flate 的 Writer（连 HuffmanOnly 的最后一块编码
+	// 都随 Go 版本漂移——首推 CI 在 go1.22/1.24 vs go1.27 上实测暴露）。
+	// 样张要的是**字节级可复现**，不是压缩率：直接写一个 stored（BTYPE=00）块序列，
+	// 每块 ≤65535 字节，块内字节原样拷贝（RFC 1951 §3.2.4）。任何解压器都能还原。
+	if err := writeStoredDeflate(w, payload); err != nil {
 		return err
 	}
 
 	var tail [8]byte
 	binary.LittleEndian.PutUint32(tail[0:4], crc32.ChecksumIEEE(payload))
 	binary.LittleEndian.PutUint32(tail[4:8], uint32(len(payload)))
-	_, err = w.Write(tail[:])
+	_, err := w.Write(tail[:])
 	return err
+}
+
+// writeStoredDeflate 手写 RFC 1951 的 stored 块序列（BTYPE=00）：每个块 =
+// 1 字节（BFINAL 1 位 + 跳到字节边界的填充 + BTYPE 2 位，全部按 LSB-first 写）+
+// LEN(2, LE) + NLEN(2, LE, = ^LEN) + LEN 字节原样数据。
+// 逐字节确定，与任何 Go / 任何压缩库版本无关。
+func writeStoredDeflate(w io.Writer, data []byte) error {
+	const maxStored = 65535
+	var hdr [5]byte
+	for len(data) > 0 {
+		n := len(data)
+		if n > maxStored {
+			n = maxStored
+		}
+		final := 0
+		if n == len(data) {
+			final = 1
+		}
+		// BFINAL=final, BTYPE=00：字节值为 final | 0<<1（本块从字节边界开始，
+		// 因为上一个 stored 块恰好以字节边界结束——LEN/NLEN 是整字节）。
+		hdr[0] = byte(final)
+		binary.LittleEndian.PutUint16(hdr[1:3], uint16(n))
+		binary.LittleEndian.PutUint16(hdr[3:5], ^uint16(n))
+		if _, err := w.Write(hdr[:]); err != nil {
+			return err
+		}
+		if _, err := w.Write(data[:n]); err != nil {
+			return err
+		}
+		data = data[n:]
+	}
+	// 边界情形：空输入也要有一个 BFINAL=1 的空 stored 块（LEN=0）。
+	if len(data) == 0 && hdr[0] == 0 {
+		// 循环体没执行过（data 为空）时补一个空终块。
+		hdr[0] = 1
+		binary.LittleEndian.PutUint16(hdr[1:3], 0)
+		binary.LittleEndian.PutUint16(hdr[3:5], 0xFFFF)
+		_, err := w.Write(hdr[:])
+		return err
+	}
+	return nil
 }

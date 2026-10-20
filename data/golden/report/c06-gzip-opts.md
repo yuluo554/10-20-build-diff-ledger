@@ -4,8 +4,8 @@
 
 | 侧 | basename | sha256 |
 |---|---|---|
-| left | `synthpkg-0.1.0.tar.gz` | `f58662db6b0bdddbb3c6e0d972a92ff6b0f9ab37f19ba998be858fce196dd1be` |
-| right | `synthpkg-0.1.0.tar.gz` | `c35e9d44c8ac7d75784bc4ac042d6f0ca4c5f03f886ff623496b88c7343552dd` |
+| left | `synthpkg-0.1.0.tar.gz` | `b5b38b5ee5e92988bd155a1e1b2034a09893b6ceb103a4732458b8d7a10abd6b` |
+| right | `synthpkg-0.1.0.tar.gz` | `59d5827673cb6efc0be792eb4670f97793c0c71821812e50dcc561d6d8c098d5` |
 
 ## 分类计数
 
