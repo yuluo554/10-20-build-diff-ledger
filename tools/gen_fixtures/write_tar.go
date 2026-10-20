@@ -226,7 +226,10 @@ func writeTarGz(w io.Writer, entries []tarEntry, p gzipParams) error {
 
 	level := p.Level
 	if level == 0 {
-		level = flate.BestCompression
+		// HuffmanOnly：只做哈夫曼编码、不做 LZ77 匹配搜索——输出字节流不依赖
+		// Go 标准库 flate 的匹配启发式，跨 Go 版本稳定（R9 预案；plan/06）。
+		// 样张只关心 gzip 头字段（T6）与解压后的 tar 字节，压缩率无关紧要。
+		level = flate.HuffmanOnly
 	}
 	fw, err := flate.NewWriter(w, level)
 	if err != nil {

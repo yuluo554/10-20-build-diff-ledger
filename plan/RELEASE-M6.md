@@ -25,9 +25,9 @@
 
 - tag `v0.1.0`（annotated）已建，指向 commit `8591ba5`（M6 定版提交，含 `plan/RELEASE-M6.md`，
   `git cat-file -e v0.1.0:plan/RELEASE-M6.md` 通过）；建 tag 时间 2026-10-20（本地）。
-- `dist/bdiff-windows-amd64.exe` sha256（本地留副本，2026-10-20 实测）：
-  `9dcb6ab64bf9ea2d7e6b47a54ce546fa54d1149d7e2452ee44dd4d031a98cdd9`
-  （`dist/SHA256SUMS` 同内容；产物体积 5711872 字节；`bdiff version` → `0.1.0`）。
+- `dist/bdiff-windows-amd64.exe` sha256（本地留副本，2026-10-20 实测，R9 修复后重建）：
+  `2172a1e97fb370be8f05c5334002ad103e0f24a03ab2c641e7822999034b3021`
+  （`dist/SHA256SUMS` 同内容；`bdiff version` → `0.1.0`）。
 - （待回填）GitHub Release URL 与附件清单：
 - （待回填）公开仓库 URL 与首推 CI run id：
 
