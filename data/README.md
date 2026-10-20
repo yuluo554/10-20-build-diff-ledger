@@ -134,6 +134,8 @@
 
 仅当满足全部三条时判 `RENAMED`：① 左侧唯一 `REMOVED` 且右侧唯一 `ADDED`；② 两者 `sha256` 相等；③ 两侧该哈希的出现次数均为 1。任一不满足 → 分别记 `REMOVED`/`ADDED`。**不做相似度、不做模糊对齐、不做字节重排匹配。**
 
+> **「唯一」的口径（M1 落地澄清）**：① 的"唯一"取**每哈希唯一**——该 `sha256` 在两侧各出现 1 次、且两侧各只有一条未匹配条目携带它；**不是**"全局只剩一条 `REMOVED` 与一条 `ADDED`"。后者会让"1 改名 + 1 新增"永远判不出改名（那是 1 条 `REMOVED` + 2 条 `ADDED`），与 `plan/03` §二 的示例输出冲突。两条边界的机器证据：`data/golden/align/basic.json`（改名 + 新增同时成立）与 `data/golden/align/dup-hash.json`（同哈希多处出现 → 不判改名）。
+
 ### 4.5 树摘要与最小原因集
 
 - `tree_digest(S) = sha256( concat_{relpath 升序} ( relpath ‖ 0x00 ‖ sha256( normalize_S(entry) ) ‖ 0x0A ) )`，`relpath` 用 UTF-8 字节序升序，分隔符写死为上式的 `0x00` 与 `0x0A`。
