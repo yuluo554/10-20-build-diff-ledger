@@ -1,0 +1,16 @@
+# 源码归一为 LF（跨平台检出/提交不产生行尾漂移）
+* text=auto eol=lf
+*.go text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+
+# 字节形态本身是被测对象：生成器产出的归档与 golden 一律不许 git 改写
+*.tar   binary
+*.tar.gz binary
+*.tgz   binary
+*.zip   binary
+*.whl   binary
+*.jar   binary

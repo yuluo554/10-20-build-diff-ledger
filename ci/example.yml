@@ -1,0 +1,68 @@
+# ci/example.yml —— 可直接粘进 GitHub Actions 的门禁示例
+#
+# 形态：把 bdiff 当"只读检查器"用在发布门禁上——
+#   只有元数据差异（T1/T2）→ 放行（exit 0，报告仍逐条列出被放行的差异）；
+#   有真内容残留 → 失败（exit 3）。
+#
+# 本示例**不联网构建**：二进制来自本仓 Release 附件或前置 job 的产物。
+# 本地等价跑法见文件末尾的注释。
+
+name: bdiff-gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproducibility-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Get bdiff (no Go toolchain needed at run time)"
+        env:
+          BDIFF_URL: https://github.com/yuluo554/10-20-build-diff-ledger/releases/latest/download/bdiff-linux-amd64
+        run: |
+          curl -fsSL "$BDIFF_URL" -o bdiff
+          chmod +x bdiff
+          ./bdiff version
+          ./bdiff selftest
+
+      - name: "Gate — allow timestamp/owner noise only"
+        id: gate
+        run: |
+          set +e
+          ./bdiff compare \
+            --left artifacts-a/pkg.tar.gz \
+            --right artifacts-b/pkg.tar.gz \
+            --budget T1,T2 \
+            --out report
+          code=$?
+          set -e
+          echo "bdiff exit=$code"
+          cat report/report.md
+          case "$code" in
+            0) echo "::notice::仅元数据差异（且在白名单内）——放行" ;;
+            2) echo "::warning::存在白名单外的元数据差异——需人工确认"; exit 2 ;;
+            3) echo "::error::归一化后仍有真内容差异"; exit 3 ;;
+            *) echo "::error::无法读取输入或用法错误"; exit 1 ;;
+          esac
+
+      - name: "Upload report"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdiff-report
+          path: report/
+
+# ── 本地等价跑法（不联网） ───────────────────────────────────────────────
+# 1) 先本地构建：CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
+# 2) 用两个已产出的产物替换下面的路径，逐条敲：
+#
+#    ./bdiff compare --left A --right B --budget T1,T2 --out report
+#    echo $?          # 0 = 放行 / 2 = 白名单外元数据差异 / 3 = 有残留 / 1 = 读不了
+#
+# 3) 报告键序与字段口径见 data/README.md §4.8；退出码口径见 §4.6。

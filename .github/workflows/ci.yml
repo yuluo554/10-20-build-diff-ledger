@@ -1,0 +1,99 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    name: "Layout gate (methodology binding)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: "Sprint layout gate"
+        run: node tools/check-sprint-layout.mjs
+
+  test:
+    name: "Test (${{ matrix.os }}, go ${{ matrix.go }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        go: ["1.22", "1.24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: "Verify no third-party modules"
+        shell: bash
+        run: |
+          if grep -qE '^\s*require\s' go.mod; then
+            echo "go.mod 含 require 段——本项目承诺零第三方依赖"
+            exit 1
+          fi
+          if [ -f go.sum ]; then
+            echo "存在 go.sum——本项目承诺零第三方依赖"
+            exit 1
+          fi
+          echo "ok: 零第三方依赖"
+      - name: "go vet"
+        run: go vet ./...
+      - name: "go test"
+        run: go test ./...
+      - name: "build (trimpath, CGO off)"
+        shell: bash
+        run: |
+          CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
+          ./bdiff version
+          ./bdiff selftest
+      - name: "forbidden import scan (CI mirror)"
+        shell: bash
+        run: |
+          hits=$(grep -rnE '^\s*(?:[\w.]+\s+)?"(net|net/http|time|math/rand|os/exec|os/user)"' \
+            --include='*.go' cmd internal tools || true)
+          if [ -n "$hits" ]; then
+            echo "受限 import 出现在源码中："
+            echo "$hits"
+            exit 1
+          fi
+          echo "ok: 无受限 import"
+
+  determinism:
+    name: "Determinism (double build byte-equal)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: false
+      - name: "two builds must be byte-identical"
+        shell: bash
+        run: |
+          CGO_ENABLED=0 go build -trimpath -o b1 ./cmd/bdiff
+          CGO_ENABLED=0 go build -trimpath -o b2 ./cmd/bdiff
+          if cmp -s b1 b2; then
+            echo "ok: 两次构建逐字节一致"
+          else
+            echo "FAIL: 两次构建不一致"
+            exit 1
+          fi
+      - name: "selftest output is stable"
+        shell: bash
+        run: |
+          ./b1 selftest > s1.txt
+          ./b1 selftest > s2.txt
+          cmp s1.txt s2.txt && echo "ok: selftest 双跑一致"

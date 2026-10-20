@@ -1,6 +1,8 @@
 # plan/00-README 总览
 
-仓库 `10-20-build-diff-ledger`（构建产物差异归因账本）出题阶段总览。v1（2026-10-20，阶段 4 骨架落盘）。
+> 方法论：`ai-tool-project-sprint`（装订 2026-10-20）｜布局门：`node tools/check-sprint-layout.mjs`｜续接对话第一件事 = 跑它
+
+仓库 `10-20-build-diff-ledger`（构建产物差异归因账本）出题阶段总览。v2（2026-10-20，M0 装订 + 骨架落盘）。
 
 **项目**：把两份**已产出**的构建产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar）转成可复算的差异分类账本 → 给出每类差异的计数、归一化后的残留字节、最小原因集 → 输出确定性报告并以退出码当 CI 门禁。
 **方法论**：数据先行 + 闭合分类法 + 纯函数幂等归一化 + 反事实实验 + 合成真值 golden + 确定性产物。
@@ -13,16 +15,22 @@
 
 | 文档 | 内容 | 状态 |
 |---|---|---|
-| `plan/00-README总览.md` | 索引 / 决策记录（含弃选项）/ 承诺-证据台账 / 招牌动词表索引 / 里程碑 / 纪律 | ✅ v1（2026-10-20，阶段 4） |
+| `plan/00-README总览.md` | 索引 / 决策记录（含弃选项）/ 承诺-证据台账 / 招牌动词表索引 / 里程碑 / 纪律 | ✅ v2（2026-10-20，M0） |
 | `plan/01-题目文档.md` | 十段式题目定稿（头部 + 介绍 + 任务要求 + 提交材料 + 评分 + 锚点 + 边界） | ✅ v1（2026-10-20） |
-| `plan/02-架构与技术选型.md` | 目录结构 / 依赖方向 / 退出码契约 / 确定性设计 | ⬜ 待 M1 启动时写 |
-| `plan/03-模块详设.md` | align / facts / attribute / minimize / report 五模块详设 + CLI 契约总表 | ⬜ 待 M2 启动时写 |
-| `plan/04-数据计划.md` | 样张矩阵 / 生成器设计 / golden 口径 / 重建判据 | ⬜ 待 M1 启动时写 |
-| `plan/05-里程碑与验收.md` | M1–M6 DoD / 固定收尾流程 | ⬜ 待 M1 启动时写 |
-| `plan/06-交付对标.md` | 提交材料落点 / 评分维度证据 / 诚实口径表 / 偏差记录 | ⬜ 待 M1 启动时写 |
+| `plan/02-架构与技术选型.md` | 目录结构 / 依赖方向 / 退出码契约 / 确定性设计 | ✅ v1（2026-10-20，M0） |
+| `plan/03-模块详设.md` | align / facts / attribute / minimize / report 五模块详设 + CLI 契约总表 | ✅ v1（2026-10-20，M0） |
+| `plan/04-数据计划.md` | 样张矩阵 / 生成器设计 / golden 口径 / 重建判据 | ✅ v1（2026-10-20，M0） |
+| `plan/05-里程碑与验收.md` | M0–M6 DoD / 布局门变异清单 / 固定收尾流程 / 已知未验证项 | ✅ v1（2026-10-20，M0） |
+| `plan/06-交付对标与决策.md` | 提交材料落点 / 评分维度证据 / 风险登记 / 缺口 / 诚实口径表 | ✅ v1（2026-10-20，M0） |
+| `AGENTS.md` | 方法论锚点（门命令 + 强制布局 + 三条硬约束 + 环境事实） | ✅ v1（2026-10-20，M0） |
+| `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ v1（2026-10-20，M0） |
+| `tools/verify-layout-mutations.mjs` | 布局门变异验证（11 组，全红） | ✅ v1（2026-10-20，M0） |
 | `data/README.md` | 依据查证（三态 + URL + 基准日）/ 数据源可获取性 / 合成数据纪律 / 数值口径（T1–T12、归一化 op、树摘要、退出码、`\|S\|≤12`） | ✅ v1（2026-10-20，阶段 4） |
 | `.gitignore` | Go 标准模板 + 生成物输出目录 + 发布产物目录 | ✅ v1 |
-| `tools/gen_fixtures/` | 样张生成器（M1 产出） | ⬜ 待 M1 |
+| `go.mod` / `cmd/bdiff/` / `internal/` | 可运行骨架（version / selftest 可用，五模块待 M1–M5） | ✅ v1（2026-10-20，M0） |
+| `tools/gen_fixtures/` | 样张生成器（M1 产出；M0 为可运行桩） | 🟡 M0 桩，M1 完成 |
+| `.github/workflows/ci.yml` / `ci/example.yml` | CI 矩阵 + 门禁示例 | ✅ v1（2026-10-20，M0） |
+| `README.md` | 安装 / 三场景 / 字段说明 / 已知边界 / 状态表 | ✅ v1（2026-10-20，M0） |
 | `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出） | ⬜ 待 M1–M5 |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前落盘；发布后事实分栏追加） | ⬜ 待 M6 |
 
@@ -97,16 +105,21 @@
 | 发布留档 | `plan/RELEASE-M6.md` | M6（tag 前落盘） | `git cat-file -e <tag>:plan/RELEASE-M6.md` |
 | CI 示例 | `ci/example.yml` | M5 | 本地按示例步骤跑一遍 |
 
-## 六、里程碑初稿
+## 六、里程碑与状态
 
-| 里程碑 | 内容 | DoD（完成判据） |
+> 状态副本三处：本表 / `plan/05` §一 / `README.md` 状态表。**三处逐字一致**由布局门机器断言。
+
+| 里程碑 | 内容 | 状态 |
 |---|---|---|
-| **M1 数据先行** | 样张生成器 `tools/gen_fixtures/`：同源码、不同 `SOURCE_DATE_EPOCH` / `umask` / `uid` / 构建目录，**构建两次**；产出 12 组样张 + `data/golden/align/basic.json` | golden 可由生成器一键重建；同输入双跑字节一致；样张矩阵（单因 8 / 双因 2 / 真改代码 1 / 混合 1）齐备 |
-| **M2 解析（facts）** | tar/zip/gzip 头 + ELF/PE/Mach-O 事实抽取；`raw_header_sha256` 兜底 | 每 key 一个单测；未知扩展头反例样张产出 `raw_header_sha256` 且与手工值一致 |
-| **M3 归因（attribute）** | T1–T12 分类 + 幂等归一化 op + 树摘要 + 残留字节 | 12 组样张命中率 100%；幂等断言全绿；`residue_bytes` 与手工 `cmp` 一致 |
-| **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | `[T1]` / `[T1,T2]` 非超集 / `null` 三组断言全绿；搜索耗时以末态回填 |
-| **M5 报告与门禁（report）** | `report.json` + `report.md` 固定键序；退出码 0/1/2/3；`--budget` 白名单；`ci/example.yml` | golden 逐字节；退出码矩阵 4 行全覆盖；CI 示例本地跑通 |
-| **M6 发布** | 干净环境验证 + 发布 | **git tag + GitHub Release 附产物（≥1 个手工上传附件，本地留副本 + sha256）+ 发布留档 `plan/RELEASE-M6.md`** 三件套齐；单二进制在无 Go 工具链的机器直接运行；发布 GitHub **公开仓库** |
+| **M0 计划先行 + 装订 + 骨架** | 方法论装订（`AGENTS.md` + 布局门 + 装订行）；`plan/00`–`06`；`data/README.md`；可运行骨架（`cmd/bdiff` + `internal/*` + `tools/gen_fixtures` 桩）；CI 与门禁示例 | ✅ 完成（2026-10-20） |
+| **M1 数据先行 + align** | 样张生成器 `tools/gen_fixtures/`：同源码、不同 `SOURCE_DATE_EPOCH` / `umask` / `uid` / 构建目录，**构建两次**；产出 13 组样张 + `data/golden/align/basic.json`；`internal/artifact` + `internal/align` | ⬜ 未开始 |
+| **M2 解析（facts）** | tar/zip/gzip 头 + ELF/PE/Mach-O 事实抽取；`raw_header_sha256` 兜底 | ⬜ 未开始 |
+| **M3 归因（attribute）** | T1–T12 分类 + 幂等归一化 op + 树摘要 + 残留字节 | ⬜ 未开始 |
+| **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | ⬜ 未开始 |
+| **M5 报告与门禁（report）** | `report.json` + `report.md` 固定键序；退出码 0/1/2/3；`--budget` 白名单；`ci/example.yml` | ⬜ 未开始 |
+| **M6 发布** | 干净环境验证 + 发布 | ⬜ 未开始 |
+
+**M6 DoD**：**git tag + GitHub Release 附产物（≥1 个手工上传附件，本地留副本 + sha256）+ 发布留档 `plan/RELEASE-M6.md`** 三件套齐；单二进制在无 Go 工具链的机器直接运行；发布 GitHub **公开仓库**。
 
 ## 七、纪律
 
@@ -115,3 +128,25 @@
 3. **不跑构建、不联网、不写输入目录**：M1 的样张生成器是**唯一**会调用构建/写文件的地方，且只写 `data/fixtures/` 与 `data/golden/`。
 4. **未知即显式**：解析器看不懂的头部进 `raw_header_sha256`；归不进 T1–T11 的差异进 T12；读不了的输入 exit 1。三条都不许静默。
 5. **形态唯一**：纯本地 CLI 单二进制。任何"再加个桌面/网页"的提议先回本表加一行弃选项。
+
+## 八、本机环境事实（实测，带日期）
+
+| 事实 | 命令 | 实测值 | 日期 |
+|---|---|---|---|
+| Node | `node --version` | `v24.15.0` | 2026-10-20 |
+| Git | `git --version` | `2.54.0.windows.1` | 2026-10-20 |
+| gh | `gh --version` | `2.93.0` | 2026-10-20 |
+| Go | `go version` | 见下（本机原无 Go，本次安装） | 2026-10-20 |
+| 网络 | `curl https://proxy.golang.org/` | 不通（国内网络）；`https://go.dev/dl/` 302，`mirrors.aliyun.com/golang/` 206 | 2026-10-20 |
+| 默认分支 | `git branch --show-current` | `main` | 2026-10-20 |
+| 远端 | `git remote -v` | **无远端**（CI 待首推验证） | 2026-10-20 |
+
+**Go 安装记录（本机首次）**：`go.dev` 直连 TLS 失败、`proxy.golang.org` 不通 → 用阿里云镜像
+`https://mirrors.aliyun.com/golang/go1.27.0.windows-amd64.zip` 下载并解到 `C:\Program Files\Go`。
+**本项目零第三方依赖**，因此不需要 GOPROXY；`go build`/`go test` 可离线运行。安装后的实测版本号回填在本行下方：
+
+```
+go version → go1.27.0 windows/amd64
+```
+
+**纪律**：本表任何一行在下一棒引用前先复测（"本机没有 X"这类事实会过期）。
