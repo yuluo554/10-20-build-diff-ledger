@@ -75,13 +75,13 @@ const MUTATIONS = [
     id: "V4",
     label: "plan/05 把 M6 翻成 ✅（其它副本仍 ⬜）",
     expect: "LAYOUT.STATUS",
-    // 靶子必须挑**未完成**的里程碑：M1–M5 收尾后那些行已是 ✅，
-    // 再拿它们当靶子只会报"marker 不存在"，变异根本没发生。
+    // M6 已是最后一个里程碑：M6 收尾后无处可打 → 改打"哨兵里程碑 M7"，
+    // 变异 = plan/05 单方面把 M7 翻 ✅（其它副本无此行）。
     apply: () =>
       mutate(
         "plan/05-里程碑与验收.md",
-        "| M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ⬜ 未开始 |",
-        "| M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ✅ 完成 |",
+        "| M7 | 哨兵里程碑（变异靶子，实际不存在） | ⬜ 未开始 |",
+        "| M7 | 哨兵里程碑（变异靶子，实际不存在） | ✅ 完成 |",
         "V4",
       ),
   },
@@ -143,8 +143,8 @@ const MUTATIONS = [
     apply: () =>
       mutate(
         "plan/06-交付对标与决策.md",
-        "| G5 | Release 未建、无远端 | M6 收尾 |",
-        "| G5 | 待 M0 收尾 | M6 收尾 |",
+        "| G5 | 远端 Release 页未建（产物已在本地留副本 + sha256，见发布留档） | 首推后建 Release 并附产物 |",
+        "| G5 | 待 M0 收尾 | 首推后建 Release 并附产物 |",
         "V9",
       ),
   },
@@ -152,13 +152,13 @@ const MUTATIONS = [
     id: "V10",
     label: "plan/05 引用一个不存在的 tools 脚本路径",
     expect: "LAYOUT.DOC_TOOLS",
-    // marker 随里程碑推进而更新：M5 收尾后 `HANDOFF-M6` 已打勾，
-    // 改打 M6 DoD 里仍未完成的 `plan/RELEASE-M6.md` 那一行。
+    // marker 随里程碑推进而更新：M6 收尾后 M6 DoD 全部打勾 →
+    // 改打发布留档 `plan/RELEASE-M6.md` §二的待回填行。
     apply: () =>
       mutate(
-        "plan/05-里程碑与验收.md",
-        "- [ ] 脱敏四步 + 产物扫描（绝对路径 / 主机名 / 用户名 / 邮箱）",
-        "- [ ] 先跑 `tools/definitely-missing.go`\n- [ ] 脱敏四步 + 产物扫描（绝对路径 / 主机名 / 用户名 / 邮箱）",
+        "plan/RELEASE-M6.md",
+        "- （待回填）GitHub Release URL 与附件清单：",
+        "- 先跑 `tools/definitely-missing.go`\n- （待回填）GitHub Release URL 与附件清单：",
         "V10",
       ),
   },
