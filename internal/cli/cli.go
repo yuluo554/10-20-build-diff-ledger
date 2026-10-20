@@ -24,10 +24,10 @@ import (
 
 // 退出码语义（data/README.md §4.6）。
 const (
-	ExitOK        = 0 // 完全一致（或 budget 放行且归一化后一致）
-	ExitUsage     = 1 // 用法错误 / 输入不可解析
-	ExitMetaOnly  = 2 // 仅元数据差异
-	ExitResidue   = 3 // 有残留
+	ExitOK       = 0 // 完全一致（或 budget 放行且归一化后一致）
+	ExitUsage    = 1 // 用法错误 / 输入不可解析
+	ExitMetaOnly = 2 // 仅元数据差异
+	ExitResidue  = 3 // 有残留
 )
 
 // Run 执行一次 CLI 调用，返回进程退出码。

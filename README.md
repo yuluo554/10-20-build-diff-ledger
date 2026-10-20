@@ -18,7 +18,7 @@
 | M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ⬜ 未开始 |
 | M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ⬜ 未开始 |
 | M4 | minimize 模块：最小原因集穷举搜索 | ⬜ 未开始 |
-| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + CI 示例 | ⬜ 未开始 |
+| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ⬜ 未开始 |
 | M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ⬜ 未开始 |
 
 ## 二、安装

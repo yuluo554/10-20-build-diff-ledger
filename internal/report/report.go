@@ -24,18 +24,18 @@ type Side struct {
 // Report 的字段顺序 = report.json 的键序（data/README.md §4.8）。
 // 新增字段必须追加在末尾并在 §4.8 同步登记，否则 golden 会红。
 type Report struct {
-	SchemaVersion    int              `json:"schema_version"`
-	ToolVersion      string           `json:"tool_version"`
-	Left             Side             `json:"left"`
-	Right            Side             `json:"right"`
-	Counts           Counts           `json:"counts"`
-	Renamed          []RenamedItem    `json:"renamed"`
-	Added            []string         `json:"added"`
-	Removed          []string         `json:"removed"`
-	ResidueBytes     int64            `json:"residue_bytes"`
-	MinimalCauseSet  []string         `json:"minimal_cause_set"`
-	ResidualItems    []ResidualItem   `json:"residual_items"`
-	Notes            []string         `json:"notes"`
+	SchemaVersion   int            `json:"schema_version"`
+	ToolVersion     string         `json:"tool_version"`
+	Left            Side           `json:"left"`
+	Right           Side           `json:"right"`
+	Counts          Counts         `json:"counts"`
+	Renamed         []RenamedItem  `json:"renamed"`
+	Added           []string       `json:"added"`
+	Removed         []string       `json:"removed"`
+	ResidueBytes    int64          `json:"residue_bytes"`
+	MinimalCauseSet []string       `json:"minimal_cause_set"`
+	ResidualItems   []ResidualItem `json:"residual_items"`
+	Notes           []string       `json:"notes"`
 }
 
 // Counts 是 T1–T12 + total，**序列化键序固定**（手写 MarshalJSON）。
@@ -51,9 +51,9 @@ type RenamedItem struct {
 
 // ResidualItem 是一条残留条目。
 type ResidualItem struct {
-	Path         string `json:"path"`
-	RuleID       string `json:"rule_id"`
-	BytesDifferent int64 `json:"bytes_different"`
+	Path           string `json:"path"`
+	RuleID         string `json:"rule_id"`
+	BytesDifferent int64  `json:"bytes_different"`
 }
 
 // MarshalJSON 按 model.RuleIDs 的顺序输出 T1…T12 再接 total。
