@@ -66,9 +66,15 @@ jobs:
           ./bdiff selftest
       - name: "forbidden import scan (CI mirror)"
         shell: bash
+        # 只认真正的 import 块（`import (` 内的行 / 单行 import），不匹配字符串字面量
+        # —— internal/guard 的 ForbiddenImports 表本身就是这些路径的清单。
         run: |
-          hits=$(grep -rnE '^\s*(?:[\w.]+\s+)?"(net|net/http|time|math/rand|os/exec|os/user)"' \
-            --include='*.go' cmd internal tools || true)
+          hits=$(awk '
+            /^import \(/ {inblock=1; next}
+            inblock && /^\)/ {inblock=0; next}
+            inblock {print}
+            /^import "/ && !/^import \(/ {print}
+          ' cmd/*.go internal/*/*.go 2>/dev/null | grep -E '"(net|net/http|net/url|time|math/rand|os/exec|os/user)"' || true)
           if [ -n "$hits" ]; then
             echo "受限 import 出现在源码中："
             echo "$hits"
