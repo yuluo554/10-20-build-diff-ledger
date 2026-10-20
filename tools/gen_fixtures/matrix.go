@@ -1,4 +1,4 @@
-// 13 组样张矩阵（plan/04 §二）+ align golden 的两对输入。
+// 14 组样张矩阵（plan/04 §二）+ align golden 的两对输入。
 //
 // 每组的"注入项"直接写在 `Injected` 与 `Expect` 里；容器字节由 cases.go 渲染。
 // 纪律：期望值只从注入项推出，不由工具跑出来的观测值回填（plan/04 §四）。
@@ -248,6 +248,26 @@ func caseDefs() []caseDef {
 			Injected: []string{"T10"},
 			Manual:   "tar -xOf pair/left/" + synthName + "-" + synthVersion + ".tar synthpkg/bin/synthpkg | grep -c '\\.sig'",
 			Expect:   metaOnly([]string{"T10"}),
+		},
+		{
+			// M2：raw_header_sha256 的兜底反例——左注入一个**未知 PAX keyword**
+			// （SCHILY.xattr.*），解析器不解释它，但必须把它计入 raw_header_sha256。
+			Name:   "c14-pax-unknown",
+			Title:  "PAX 未知扩展头 keyword（raw_header_sha256 兜底反例，T7）",
+			Format: "tar",
+			Files:  pythonFiles(),
+			Left: func() sideSpec {
+				s := baseSide()
+				s.PAX = map[string][]string{
+					"synthpkg/METADATA": {"SCHILY.xattr.user.marker=fixture-unknown"},
+				}
+				return s
+			}(),
+			Right:    baseSide(),
+			Injected: []string{"T7"},
+			Manual: "tar --xattrs -tvf pair/left/" + synthName + "-" + synthVersion + ".tar   # 左含 PAX 扩展头\n" +
+				"strings -a pair/left/" + synthName + "-" + synthVersion + ".tar | grep SCHILY.xattr.user.marker   # = fixture-unknown",
+			Expect: metaOnly([]string{"T7"}),
 		},
 	}
 }

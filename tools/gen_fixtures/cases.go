@@ -52,6 +52,9 @@ type tarEntry struct {
 	MTime    int64
 	Uname    string
 	Gname    string
+	// PaxRecords 非空时，在该条目之前写一个 PAX 扩展头（'x'）承载这些记录。
+	// c14 用它注入"未知 keyword"（raw_header_sha256 的兜底反例）。
+	PaxRecords []string
 }
 
 // sideSpec 是一侧的注入参数。所有可差异化的字段都在这里，
@@ -67,7 +70,9 @@ type sideSpec struct {
 	DirMode   int64
 	Reverse   bool              // 存储顺序反转（c05 注入 T5）
 	Overrides map[string][]byte // 按逻辑路径覆盖内容（c11/c12 注入真改）
-	ELF       elfSpec
+	// PAX 是按逻辑路径注入的 PAX 扩展头记录（c14 注入未知 keyword）。
+	PAX map[string][]string
+	ELF elfSpec
 
 	GzipXFL   byte
 	GzipOS    byte
@@ -203,6 +208,9 @@ func buildEntries(files []fileSpec, s sideSpec) ([]tarEntry, error) {
 			MTime: s.MTime,
 			Uname: s.Uname,
 			Gname: s.Gname,
+		}
+		if recs, ok := s.PAX[f.Path]; ok {
+			te.PaxRecords = recs
 		}
 		switch f.Kind {
 		case kindDir:

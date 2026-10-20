@@ -14,12 +14,12 @@ import (
 	"testing"
 )
 
-// TestCaseMatrixIs13AndCoversT1ToT12 钉住矩阵形态（plan/04 §二）：
-// 13 组；T1–T12 每一类都至少被一组注入（"不允许有类别没有样张"）。
-func TestCaseMatrixIs13AndCoversT1ToT12(t *testing.T) {
+// TestCaseMatrixIs14AndCoversT1ToT12 钉住矩阵形态（plan/04 §二）：
+// 14 组；T1–T12 每一类都至少被一组注入（"不允许有类别没有样张"）。
+func TestCaseMatrixIs14AndCoversT1ToT12(t *testing.T) {
 	cases := caseDefs()
-	if len(cases) != 13 {
-		t.Fatalf("样张数 = %d，期望 13", len(cases))
+	if len(cases) != 14 {
+		t.Fatalf("样张数 = %d，期望 14", len(cases))
 	}
 	covered := map[string]bool{}
 	for _, c := range cases {
@@ -80,8 +80,8 @@ func TestOnlyWritesNoManifest(t *testing.T) {
 	}
 }
 
-// TestFullRunWritesManifest13 断言全量运行写出的清单恰好 13 组。
-func TestFullRunWritesManifest13(t *testing.T) {
+// TestFullRunWritesManifest14 断言全量运行写出的清单恰好 14 组。
+func TestFullRunWritesManifest14(t *testing.T) {
 	dir := t.TempDir()
 	if err := run(io.Discard, dir, "", false); err != nil {
 		t.Fatalf("全量运行失败: %v", err)
@@ -90,8 +90,8 @@ func TestFullRunWritesManifest13(t *testing.T) {
 	if err != nil {
 		t.Fatalf("缺 manifest.json: %v", err)
 	}
-	if got := strings.Count(string(b), `"name": "c`); got != 13 {
-		t.Fatalf("manifest 里 case 数 = %d，期望 13\n%s", got, b)
+	if got := strings.Count(string(b), `"name": "c`); got != 14 {
+		t.Fatalf("manifest 里 case 数 = %d，期望 14\n%s", got, b)
 	}
 }
 
@@ -102,8 +102,8 @@ func TestCheckIsGreen(t *testing.T) {
 	if err := run(&out, filepath.Join("..", "..", "data", "fixtures"), "", true); err != nil {
 		t.Fatalf("--check 失败: %v\n%s", err, out.String())
 	}
-	if !strings.Contains(out.String(), "13 cases, 0 diff") {
-		t.Fatalf("--check 输出不含 '13 cases, 0 diff'：%s", out.String())
+	if !strings.Contains(out.String(), "14 cases, 0 diff") {
+		t.Fatalf("--check 输出不含 '14 cases, 0 diff'：%s", out.String())
 	}
 }
 

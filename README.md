@@ -6,7 +6,7 @@
 `bdiff` 是**纯本地 CLI**：单二进制、零第三方依赖、**不跑构建、不联网、不写输入目录**。
 输入只有两份现成的产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar），输出是确定性报告与一个退出码。
 
-**状态**：`v0.1.0-dev` · M1（数据先行 + align）。13 组合成样张与 `bdiff align` 已落地；facts / attribute / minimize / report 从 M2 起逐棒落地。
+**状态**：`v0.1.0-dev` · M3（attribute）。14 组合成样张、`bdiff align` / `bdiff facts` / 归因（`bdiff compare` 的 JSON 输出）已落地；minimize / report 从 M4 起逐棒落地。
 当前状态的真值在 `plan/05-里程碑与验收.md` §一；发布状态只以 Release 页与 `plan/` 为准。
 
 ## 一、里程碑状态
@@ -15,8 +15,8 @@
 |---|---|---|
 | M0 | 计划先行 + 方法论装订 + 可运行骨架 | ✅ 完成（2026-10-20） |
 | M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ✅ 完成（2026-10-20） |
-| M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ⬜ 未开始 |
-| M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ⬜ 未开始 |
+| M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ✅ 完成（2026-10-20） |
+| M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ✅ 完成（2026-10-20） |
 | M4 | minimize 模块：最小原因集穷举搜索 | ⬜ 未开始 |
 | M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ⬜ 未开始 |
 | M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ⬜ 未开始 |
@@ -37,7 +37,9 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 
 ## 三、三个最小场景
 
-> ⚠️ **当前是 M1**：`version` / `selftest` / `align` 已可用；`facts` / `compare` 仍会**显式报错并 exit 1**（"尚未实现"），不会返回假结果。下面三条 `compare` 命令是**目标形态**，随 M2–M5 逐条变绿。
+> ⚠️ **当前是 M3**：`version` / `selftest` / `align` / `facts` 与 `compare` 的**归因 JSON + 退出码**已可用；
+> `compare --out`（`report.json`/`report.md`）、`--format=md|both`、最小原因集与 `--fail-on` 随 M4–M5 补齐。
+> 未落地的参数会**显式报错并 exit 1**，不会返回假结果。下面三条 `compare` 命令是**目标形态**。
 
 ### 场景一：只差 mtime
 
@@ -74,14 +76,19 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 
 口径的唯一权威是 `data/README.md` §4.6。**`1` 是补定的**：否则"读不了"会被当成"一致"（静默通过的经典漏洞）。
 
-## 五、字段说明（报告）
+## 五、字段说明（归因输出）
 
-`report.json` 键序固定：`schema_version` → `tool_version` → `left` → `right` → `counts` → `renamed` → `added` → `removed` → `residue_bytes` → `minimal_cause_set` → `residual_items` → `notes`。
+M3 的 `bdiff compare` 输出归因 JSON：`counts` → `diffs` → `residue_bytes` → `tree_digest` → `notes`。
+M5 起的 `report.json` 在其前面加 `schema_version`/`tool_version`/`left`/`right`，并补 `renamed`/`added`/`removed`/
+`minimal_cause_set`/`residual_items`；键序口径见 `data/README.md` §4.8。
 
 - `counts`：T1–T12 逐类计数 + `total`；分类法定义见 `data/README.md` §4.1。
-- `minimal_cause_set`：使两侧归一化后**树摘要相等**的**基数最小**规则集合；无解为 `null`（且 `residue_bytes > 0`）。
-- `residue_bytes`：归一化后**实际不同字节数**（逐条目字节比对，不用长度差近似）。
-- `left` / `right`：只写 `basename` 与 `sha256`——**不写绝对路径**。
+- `diffs`：逐差异点 `(path, key, rule_id, left, right, bytes_delta)`，按 `(path, key, rule_id)` 排序。
+- `residue_bytes`：归一化（S = T1–T11）后两侧条目字节流的**实际不同字节数**（§4.5）。
+- `tree_digest`：`left`/`right`（S = ∅）与 `normalized_all`（左侧 S = T1–T11）。
+- `notes`：口径性提示（如 §4.1 的 `rule_overlap`），不参与判定。
+- M5 的 `minimal_cause_set`：使两侧归一化后**树摘要相等**的**基数最小**规则集合；无解为 `null`（且 `residue_bytes > 0`）。
+- M5 的 `left` / `right`：只写 `basename` 与 `sha256`——**不写绝对路径**。
 
 ## 六、已知边界（v0）
 
@@ -91,7 +98,7 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 4. **不做符号级语义 diff**：只比较头字段与节表事实。
 5. **不含** `deb` / `rpm` / `apk`、不含 registry 拉取、不含 `--against-tag`（扩展项，不进首期判定路径）。
 6. **不承诺自然语言"为什么"**：只承诺分类计数、残留字节、最小原因集这三件可复算的事。
-7. **合成样张上的验证**：分类命中率在程序化生成的 13 组样张上验证；真实发行版产物的覆盖不作为承诺（`plan/06` R4）。
+7. **合成样张上的验证**：分类命中率在程序化生成的 14 组样张上验证；真实发行版产物的覆盖不作为承诺（`plan/06` R4）。
 8. **跨平台**：本机只在 Windows + Git Bash 验证过；Linux/macOS 行为由 CI 矩阵验证（尚无远端，见 `plan/05` §三 U1/U2）。
 
 ## 七、隐私与确定性
@@ -110,7 +117,7 @@ go run ./tools/gen_fixtures --out data/fixtures --check   # 样张重建校验�
 
 # 守门的变异验证：证明上面那些门不是"恒绿装饰"
 node tools/verify-layout-mutations.mjs   # 布局门，11 组变异必须全红
-bash tools/verify-go-guards.sh           # Go 侧守门，8 组变异必须全红
+bash tools/verify-go-guards.sh           # Go 侧守门，9 组变异必须全红
 ```
 
 本仓库遵循 `ai-tool-project-sprint` 方法论：计划与验收口径全在 `plan/`（入口 `plan/00-README总览.md`），

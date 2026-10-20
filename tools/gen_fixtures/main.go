@@ -7,7 +7,7 @@
 //     头部字段逐一显式赋值，不依赖标准库 writer 的默认值；
 //  3. **部分运行不改全集清单**：--only 只写该 case 的目录，绝不写 manifest.json（K11）；
 //  4. **--check 不落临时目录**：全量生成到内存 → 与入仓树逐字节比对，
-//     一致打印 "13 cases, 0 diff" 并退出 0。
+//     一致打印 "<N> cases, 0 diff" 并退出 0（N = caseDefs() 的长度）。
 package main
 
 import (
@@ -118,7 +118,7 @@ func buildTree(only string) (map[string][]byte, error) {
 	}
 
 	if only == "" {
-		// align golden 的输入对（目录形态）：不属于 13 组分类样张。
+		// align golden 的输入对（目录形态）：不属于分类样张。
 		for _, p := range goldenPairs() {
 			base := "align-golden/" + p.Name
 			if err := putDirTree(tree, base+"/pair/left", p.Left); err != nil {
@@ -213,6 +213,18 @@ func sideInputs(s sideSpec) map[string]string {
 	if s.Reverse {
 		m["entry_order"] = "reversed"
 	}
+	if len(s.PAX) > 0 {
+		paths := make([]string, 0, len(s.PAX))
+		for p := range s.PAX {
+			paths = append(paths, p)
+		}
+		sort.Strings(paths)
+		recs := make([]string, 0, len(paths))
+		for _, p := range paths {
+			recs = append(recs, p+"="+strings.Join(s.PAX[p], ";"))
+		}
+		m["pax_records"] = strings.Join(recs, ",")
+	}
 	if s.ELF.Signature == nil {
 		m["elf_signature"] = "absent"
 	} else {
@@ -239,7 +251,7 @@ func renderReadme(c caseDef) []byte {
 	name := c.artifactName()
 	fmt.Fprintf(&b, "# %s · %s\n\n", c.Name, c.Title)
 	b.WriteString("> 由 `tools/gen_fixtures` 程序化生成，**禁止手改**。\n")
-	b.WriteString("> 重建校验：`go run ./tools/gen_fixtures --out data/fixtures --check`（应输出 `13 cases, 0 diff`）。\n\n")
+	b.WriteString("> 重建校验：`go run ./tools/gen_fixtures --out data/fixtures --check`（应输出 `14 cases, 0 diff`）。\n\n")
 
 	b.WriteString("## 注入的差异\n\n")
 	fmt.Fprintf(&b, "- 容器：`%s`\n- 注入类别：%s\n", c.Format, strings.Join(c.Injected, "、"))

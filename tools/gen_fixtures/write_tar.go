@@ -33,9 +33,55 @@ type tarHeader struct {
 
 const blockSize = 512
 
+// paxRecord 编码一条 PAX 记录（"len key=value\n"，len 含自身）。
+func paxRecord(kv string) []byte {
+	body := kv + "\n"
+	n := len(body)
+	for {
+		s := fmt.Sprintf("%d %s", n, body)
+		if len(s) == n {
+			return []byte(s)
+		}
+		n = len(s)
+	}
+}
+
 // writeTar 按给定顺序写 tar。零字节用两个 512 块收尾（POSIX 的最小合法尾部）。
+//
+// 条目带 PaxRecords 时，先写一个 typeflag='x' 的扩展头（c14 的未知 keyword 载体）。
 func writeTar(w io.Writer, entries []tarEntry) error {
 	for _, e := range entries {
+		if len(e.PaxRecords) > 0 {
+			var payload []byte
+			for _, kv := range e.PaxRecords {
+				payload = append(payload, paxRecord(kv)...)
+			}
+			base := e.Name
+			if i := lastSlash(base); i >= 0 {
+				base = base[i+1:]
+			}
+			ph, err := encodeTarHeader(tarHeader{
+				Name:     "PaxHeaders/" + base,
+				Mode:     0o644,
+				Size:     int64(len(payload)),
+				MTime:    0,
+				Typeflag: 'x',
+			})
+			if err != nil {
+				return err
+			}
+			if _, err := w.Write(ph); err != nil {
+				return err
+			}
+			if _, err := w.Write(payload); err != nil {
+				return err
+			}
+			if pad := padTo(len(payload), blockSize); pad > 0 {
+				if _, err := w.Write(make([]byte, pad)); err != nil {
+					return err
+				}
+			}
+		}
 		h := &tarHeader{
 			Name:     e.Name,
 			Mode:     e.Mode,
@@ -137,6 +183,16 @@ func padTo(n, align int) int {
 		return align - r
 	}
 	return 0
+}
+
+// lastSlash 返回最后一个 '/' 的下标（无则 -1）。
+func lastSlash(s string) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == '/' {
+			return i
+		}
+	}
+	return -1
 }
 
 // gzipParams 是 gzip 成员头的可注入字段（T6）。

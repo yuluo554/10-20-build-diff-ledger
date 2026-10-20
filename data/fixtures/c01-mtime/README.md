@@ -1,7 +1,7 @@
 # c01-mtime · 两侧 tar 仅 mtime 不同
 
 > 由 `tools/gen_fixtures` 程序化生成，**禁止手改**。
-> 重建校验：`go run ./tools/gen_fixtures --out data/fixtures --check`（应输出 `13 cases, 0 diff`）。
+> 重建校验：`go run ./tools/gen_fixtures --out data/fixtures --check`（应输出 `14 cases, 0 diff`）。
 
 ## 注入的差异
 

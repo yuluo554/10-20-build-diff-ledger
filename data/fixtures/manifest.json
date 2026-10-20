@@ -8,7 +8,7 @@
         {
           "path": "c01-mtime/README.md",
           "size": 695,
-          "sha256": "ea8cf4120f72577f8370e9a700586f7905f6910123fc590bf7825a8d45def6ed"
+          "sha256": "9fe85207f84286bd732aee876000004cf073f58288dd0fd5ebd68317b7e6aafb"
         },
         {
           "path": "c01-mtime/expect.json",
@@ -33,7 +33,7 @@
         {
           "path": "c02-owner/README.md",
           "size": 709,
-          "sha256": "4545ca6772e94e55ebe37bcd3e2aaf8e9b0671de66c6154c99528fd6528bd3a9"
+          "sha256": "e6613d68a0b0282063c3d46571bd22edc4a846ce6eeae194bd9f01683c964c05"
         },
         {
           "path": "c02-owner/expect.json",
@@ -58,7 +58,7 @@
         {
           "path": "c03-mode/README.md",
           "size": 715,
-          "sha256": "c1627fa6f8bac3f804bd08d2471cf278b20c57f82a5b39262df8008ed58db1da"
+          "sha256": "6eca077f0b0f2854538dfd8edd91bdb86ef335f6bf68d4e1aeeae4f8f223b0cf"
         },
         {
           "path": "c03-mode/expect.json",
@@ -83,7 +83,7 @@
         {
           "path": "c04-prefix/README.md",
           "size": 728,
-          "sha256": "6576c5fe619d9545c7a614f842ab5e4d596b0a395fda9ab4f3fb1471ab60afb0"
+          "sha256": "cba69a5f09cb73f4f82d76168c3b1ddc231b6fbc6245a1edae63ab9ab4a9f31d"
         },
         {
           "path": "c04-prefix/expect.json",
@@ -108,7 +108,7 @@
         {
           "path": "c05-order/README.md",
           "size": 727,
-          "sha256": "03af41d12f3a936afd8a2ad238d095a8f8eb3e9a3db7f1168646615179e21985"
+          "sha256": "af834ff3aad4edcfa572ee543c9f265f2f48ee4fa7d59afa70855868f3e09b90"
         },
         {
           "path": "c05-order/expect.json",
@@ -133,7 +133,7 @@
         {
           "path": "c06-gzip-opts/README.md",
           "size": 751,
-          "sha256": "58446017baf6d3f5909c9c25c548a67f0c4e0a22a2535fbf56b66060c29a53a2"
+          "sha256": "c709cb7ba89a67674545ddb416d5afcf8303d6ed50c6ea88ee8f9bcd5733164a"
         },
         {
           "path": "c06-gzip-opts/expect.json",
@@ -158,7 +158,7 @@
         {
           "path": "c07-archive-hdr/README.md",
           "size": 767,
-          "sha256": "e44ac8b8a9b09b5e2a6280c5ce363565e66303bb93a3945bd49bd15bf25a5815"
+          "sha256": "7b71f02d8088c0630f7a246b7fba5546b1058f2f41dfb3c4da4994d658d9be82"
         },
         {
           "path": "c07-archive-hdr/expect.json",
@@ -183,7 +183,7 @@
         {
           "path": "c08-toolchain/README.md",
           "size": 703,
-          "sha256": "b18fc96cb1253189b4047d7efeb0ac509326f34c0ef8fd458bbbb87be438549c"
+          "sha256": "6d382cd376d692fbf7a94fc7d06f6210cd9014f3c739ea1c84417070488cc5a9"
         },
         {
           "path": "c08-toolchain/expect.json",
@@ -208,7 +208,7 @@
         {
           "path": "c09-mtime-owner/README.md",
           "size": 737,
-          "sha256": "bc5986eb6ed8c8cf35d375c2e29c74134af0b8a269cf99693e64e67a3b6829b8"
+          "sha256": "a5bc825afe0c8a7cafd32fa3ccba195811f58dfbfe16f57f32fa92c59144b2cd"
         },
         {
           "path": "c09-mtime-owner/expect.json",
@@ -233,7 +233,7 @@
         {
           "path": "c10-toolchain-path/README.md",
           "size": 757,
-          "sha256": "55c5eaf8a9ac9c29d09595eb13319d61190fcc886e83958240a4da8e318a3ffe"
+          "sha256": "13c56e18fdf31590379ebdf7e1b662ed4138b1d78b0c79d1d44ec58339c5652a"
         },
         {
           "path": "c10-toolchain-path/expect.json",
@@ -258,7 +258,7 @@
         {
           "path": "c11-real-change/README.md",
           "size": 1092,
-          "sha256": "e8fe0fb29c77440faa43323505bc8a274fd220c291f32b6659283d8d73de5611"
+          "sha256": "26feef35cb89faed3620969813ef1a2e4042958b245f6428b458b1af1193a1eb"
         },
         {
           "path": "c11-real-change/expect.json",
@@ -283,7 +283,7 @@
         {
           "path": "c12-mixed/README.md",
           "size": 887,
-          "sha256": "240eac865ffa01206e432f2bb93791262b1f18c0cb41803d7bba3e72f7b26af9"
+          "sha256": "879d7fdf051bcdba8a1b7e9ac4f735e91e612605459b9147d359ae4b60f46b1b"
         },
         {
           "path": "c12-mixed/expect.json",
@@ -308,7 +308,7 @@
         {
           "path": "c13-signature/README.md",
           "size": 735,
-          "sha256": "07e22c85166f1d4b0fcf314f3f60f5da2c5958625fca55de9e828ae9f54ef82d"
+          "sha256": "b11c4866295d9b4a4b2b3d5bafdd8df45a70deeec85e5c1157340141da5702e1"
         },
         {
           "path": "c13-signature/expect.json",
@@ -324,6 +324,31 @@
           "path": "c13-signature/pair/right/synthpkg-0.1.0.tar",
           "size": 9216,
           "sha256": "434f7b6ca3932b86c02cff5754920d53c20c129e2c6170a136b96fb3de993874"
+        }
+      ]
+    },
+    {
+      "name": "c14-pax-unknown",
+      "files": [
+        {
+          "path": "c14-pax-unknown/README.md",
+          "size": 855,
+          "sha256": "71731f6c780bbeeead8a604452da5fd3b7f328a60c5204e3afd2b9bb6c5ffd56"
+        },
+        {
+          "path": "c14-pax-unknown/expect.json",
+          "size": 1583,
+          "sha256": "ace33f61cd966879090c65897aee38b5eaab09f04688189e13b81adbe3222a83"
+        },
+        {
+          "path": "c14-pax-unknown/pair/left/synthpkg-0.1.0.tar",
+          "size": 8192,
+          "sha256": "026cf38265525de39e7c91765d1ebed2cc1e0426ac35d6c1aa1e7d64d365d60b"
+        },
+        {
+          "path": "c14-pax-unknown/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
         }
       ]
     }

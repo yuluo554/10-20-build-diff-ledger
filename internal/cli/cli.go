@@ -18,6 +18,7 @@ import (
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/attribute"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/facts"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/minimize"
+	"github.com/yuluo554/10-20-build-diff-ledger/internal/model"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/report"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/version"
 )
@@ -164,10 +165,13 @@ func runAlign(args []string, stdout io.Writer) (int, error) {
 }
 
 func runFacts(args []string, stdout io.Writer) (int, error) {
-	var artifactPath, format string
+	var artifactPath, format, layerKind string
+	var maxEntryBytes int64
 	fs := newFlagSet("facts", os.Stderr)
 	fs.StringVar(&artifactPath, "artifact", "", "待抽取的产物路径")
 	fs.StringVar(&format, "format", "json", "输出格式：json")
+	fs.StringVar(&layerKind, "layer-kind", "", "容器提示：oci")
+	fs.Int64Var(&maxEntryBytes, "max-entry-bytes", artifact.DefaultMaxEntryBytes, "单条目上限（字节）")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage, nil
 	}
@@ -180,10 +184,21 @@ func runFacts(args []string, stdout io.Writer) (int, error) {
 	if _, err := os.Stat(artifactPath); err != nil {
 		return ExitUsage, fmt.Errorf("无法读取 %q：路径不存在或不可访问", filepath.Base(artifactPath))
 	}
-	if _, err := facts.Extract(artifact.Raw{}); err != nil {
-		return ExitUsage, fmt.Errorf("%v（本命令在 M2 落地）", err)
+	doc, err := artifact.LoadDocument(artifactPath, layerKind, maxEntryBytes)
+	if err != nil {
+		return ExitUsage, err
 	}
-	_ = stdout
+	out, err := facts.Build(doc)
+	if err != nil {
+		return ExitUsage, err
+	}
+	buf, err := report.MarshalValue(out)
+	if err != nil {
+		return ExitUsage, err
+	}
+	if _, err := stdout.Write(buf); err != nil {
+		return ExitUsage, err
+	}
 	return ExitOK, nil
 }
 
@@ -192,7 +207,7 @@ func runCompare(args []string, stdout io.Writer) (int, error) {
 	fs := newFlagSet("compare", os.Stderr)
 	fs.StringVar(&left, "left", "", "左侧产物路径")
 	fs.StringVar(&right, "right", "", "右侧产物路径")
-	fs.StringVar(&out, "out", "", "输出目录（report.json / report.md）")
+	fs.StringVar(&out, "out", "", "输出目录（report.json / report.md；M5 落地）")
 	fs.StringVar(&format, "format", "json", "输出格式：json|md|both")
 	fs.StringVar(&budgetRaw, "budget", "", "CI 允许的差异类别：T1,T2 或 all")
 	fs.StringVar(&layerKind, "layer-kind", "", "容器提示：oci")
@@ -202,26 +217,114 @@ func runCompare(args []string, stdout io.Writer) (int, error) {
 	if err := checkFormat(format, "json", "md", "both"); err != nil {
 		return ExitUsage, err
 	}
-	// 参数面校验排在 I/O 之前：非法值不必等读完文件才发现（"拒绝发生在建目录/开库之前"）。
+	// 参数面校验排在 I/O 之前：非法值不必等读完文件才发现。
 	budget, err := report.ParseBudget(budgetRaw)
 	if err != nil {
 		return ExitUsage, err
 	}
+	if out != "" || format != "json" {
+		// M3 只落地归因；report.json/md 的落盘与 --format 组合在 M5。
+		return ExitUsage, errors.New("compare 的 --out / --format=md|both 在 M5 落地（M3 只输出归因 JSON）")
+	}
 	if err := requirePaths(left, right); err != nil {
 		return ExitUsage, err
 	}
-	_ = budget
-	_ = layerKind
 
-	if _, err := attribute.Attribute(nil, nil); err != nil {
-		return ExitUsage, fmt.Errorf("%v（本命令在 M3–M5 落地）", err)
+	leftDoc, err := artifact.LoadDocument(left, layerKind, 0)
+	if err != nil {
+		return ExitUsage, err
 	}
-	if _, _, err := minimize.Search(nil, nil); err != nil {
-		return ExitUsage, fmt.Errorf("%v（本命令在 M4 落地）", err)
+	rightDoc, err := artifact.LoadDocument(right, layerKind, 0)
+	if err != nil {
+		return ExitUsage, err
 	}
-	_ = out
-	_ = stdout
-	return ExitOK, nil
+	leftSide, err := buildAttributeSide(leftDoc)
+	if err != nil {
+		return ExitUsage, err
+	}
+	rightSide, err := buildAttributeSide(rightDoc)
+	if err != nil {
+		return ExitUsage, err
+	}
+	res, err := attribute.Attribute(leftSide, rightSide)
+	if err != nil {
+		return ExitUsage, err
+	}
+	buf, err := report.MarshalValue(res)
+	if err != nil {
+		return ExitUsage, err
+	}
+	if _, err := stdout.Write(buf); err != nil {
+		return ExitUsage, err
+	}
+	return compareExitCode(res, budget), nil
+}
+
+// buildAttributeSide 把一份已装载文档转成 attribute 的输入：
+// 容器级事实（path=""）+ 每个条目的 facts 与内容字节。
+func buildAttributeSide(doc artifact.Document) (attribute.SideInput, error) {
+	side := attribute.SideInput{Kind: string(doc.Kind)}
+	if cf := facts.ExtractContainer(doc.Container); len(cf) > 0 {
+		side.Entries = append(side.Entries, attribute.EntryInput{
+			Path: "", Index: -1, Facts: factMap(cf),
+		})
+	}
+	for _, raw := range doc.Entries {
+		fs, err := facts.Extract(raw)
+		if err != nil {
+			return attribute.SideInput{}, err
+		}
+		side.Entries = append(side.Entries, attribute.EntryInput{
+			Path:  raw.Path,
+			Kind:  model.Kind(raw.Kind),
+			Index: raw.Index,
+			Data:  raw.Data,
+			Facts: factMap(fs),
+		})
+	}
+	return side, nil
+}
+
+func factMap(fs []model.Fact) map[string]string {
+	m := make(map[string]string, len(fs))
+	for _, f := range fs {
+		m[f.Key] = f.Value
+	}
+	return m
+}
+
+// compareExitCode 是 data/README.md §4.6 在 M3 的落点（minimize 在 M4 接入后不变）：
+//
+//	有残留 / T12        → 3
+//	无差异              → 0
+//	仅元数据差异        → 实际类别 ⊆ budget ? 0 : 2
+func compareExitCode(res *attribute.Result, budget []string) int {
+	if res.ResidueBytes > 0 || res.Counts.Values["T12"] > 0 {
+		return ExitResidue
+	}
+	if res.Counts.Values["total"] == 0 {
+		return ExitOK
+	}
+	if len(budget) > 0 && budgetCovers(res, budget) {
+		return ExitOK
+	}
+	return ExitMetaOnly
+}
+
+func budgetCovers(res *attribute.Result, budget []string) bool {
+	allowed := make(map[string]bool, len(budget))
+	for _, r := range budget {
+		allowed[r] = true
+	}
+	for rule, n := range res.Counts.Values {
+		if rule == "total" || n == 0 {
+			continue
+		}
+		if !allowed[rule] {
+			return false
+		}
+	}
+	return true
 }
 
 // runSelftest 是**离线**自检：不读样张、不联网、不写盘。

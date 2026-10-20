@@ -21,7 +21,7 @@ func TestTreeDigestIsDeterministic(t *testing.T) {
 	}
 }
 
-// TestTreeDigestSeparators 断言拼接规则：relpath ‖ 0x00 ‖ sha256(entry) ‖ 0x0A。
+// TestTreeDigestSeparators 断言拼接规则：relpath ‖ 0x00 ‖ sha256(entry_stream) ‖ 0x0A。
 //
 // **这条测试本身不足以守分隔符**（实测）：hex 摘要是定长 64 字符，去掉 0x00 后
 // "ab" 与 "a"+"b" 的字节流仍然不同，所以"两种切分给出不同摘要"在任何实现下都成立。
@@ -37,11 +37,12 @@ func TestTreeDigestSeparators(t *testing.T) {
 }
 
 // TestTreeDigestKnownAnswer 是 §4.5 的**已知答案**（KAT）：
-// 期望值由独立实现（Python hashlib，见 data/README.md §4.5 的拼接式）算出，不由本包产出。
-// 这是"分隔符/分隔符顺序/hex 编码"三者唯一的硬证据。
+// 期望值由独立实现（Python hashlib，按 §4.5 的 entry_stream 拼接式）算出，不由本包产出。
+// entry_stream = 十进制 index ‖ 0x00 ‖ (key ‖ 0x00 ‖ value ‖ 0x0A)* ‖ 0x00 ‖ content。
+// 这是"分隔符/顺序/hex 编码"三者唯一的硬证据。
 // 变异验证：删 h.Write([]byte{0x00}) 或把 0x0A 换成别的 → 本测试必须红。
 func TestTreeDigestKnownAnswer(t *testing.T) {
-	const want = "19d4ece49af4977a167294d9b8c0e17fd3d439cc8955b6c8da615bcb994b1117"
+	const want = "61275b676fa7582a5477c2c61c2c9475f805b81c4e20b54df44499294ce26131"
 	in := []Entry{
 		{Path: "b.txt", Bytes: []byte("bbb")},
 		{Path: "a.txt", Bytes: []byte("aaa")},
@@ -49,8 +50,36 @@ func TestTreeDigestKnownAnswer(t *testing.T) {
 	}
 	if got := TreeDigest(nil, in); got != want {
 		t.Fatalf("树摘要与独立实现不一致\n got=%s\nwant=%s\n"+
-			"（检查 §4.5 的拼接式：relpath ‖ 0x00 ‖ sha256(entry) ‖ 0x0A；条目按 relpath 字节序）", got, want)
+			"（检查 §4.5 的拼接式：relpath ‖ 0x00 ‖ sha256(entry_stream) ‖ 0x0A；条目按 relpath 字节序）", got, want)
 	}
+}
+
+// TestEntryStreamHasIndexAndFacts 钉住 entry_stream 的三个分量：
+// index 参与摘要（T5 的归一化因此有意义），facts 参与摘要（T1–T3/T6/T7 因此可归一化）。
+func TestEntryStreamHasIndexAndFacts(t *testing.T) {
+	base := Entry{Path: "x", Index: 3, Bytes: []byte("c"), Facts: map[string]string{"tar.mtime": "1"}}
+	if sameStream(base, Entry{Path: "x", Index: 4, Bytes: []byte("c"), Facts: base.Facts}) {
+		t.Fatal("index 未进入 entry_stream（T5 将失去作用）")
+	}
+	if sameStream(base, Entry{Path: "x", Index: 3, Bytes: []byte("c"), Facts: map[string]string{"tar.mtime": "2"}}) {
+		t.Fatal("facts 未进入 entry_stream（元数据差异将无法被摘要看见）")
+	}
+	if sameStream(base, Entry{Path: "x", Index: 3, Bytes: []byte("d"), Facts: base.Facts}) {
+		t.Fatal("content 未进入 entry_stream")
+	}
+}
+
+func sameStream(a, b Entry) bool {
+	sa, sb := EntryStream(a), EntryStream(b)
+	if len(sa) != len(sb) {
+		return false
+	}
+	for i := range sa {
+		if sa[i] != sb[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // TestApplyIsIdempotentForRegisteredOps 是 §4.2 幂等纪律的落点。
@@ -65,6 +94,14 @@ func TestApplyIsIdempotentForRegisteredOps(t *testing.T) {
 	}
 	if once[0].Path != twice[0].Path || string(once[0].Bytes) != string(twice[0].Bytes) {
 		t.Fatalf("Apply 不幂等")
+	}
+	if len(once[0].Facts) != len(twice[0].Facts) {
+		t.Fatalf("Apply 的 facts 不幂等")
+	}
+	for k, v := range once[0].Facts {
+		if twice[0].Facts[k] != v {
+			t.Fatalf("Apply 的 facts 不幂等：%s", k)
+		}
 	}
 	// 输入不得被就地修改（纯函数）
 	if string(in[0].Bytes) != "data" {

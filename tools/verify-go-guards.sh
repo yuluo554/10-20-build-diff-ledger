@@ -116,7 +116,8 @@ expect_red "G2 align→cli 反向依赖" ./internal/guard TestDependencyDirectio
 restore internal/align/align.go "$b" "G2"
 
 # G3：往 normalize.Ops 里塞 T12 → op 表口径断言必须红
-b=$(apply internal/normalize/normalize.go '"T9": nil, "T10": nil, "T11": nil,' '"T9": nil, "T10": nil, "T11": nil, "T12": nil,' "G3 Ops 混入 T12")
+# marker 随 M3 把 op 从 nil 换成实现而更新（旧 marker `"T9": nil, ...` 已不存在）。
+b=$(apply internal/normalize/normalize.go '"T9": opT9, "T10": opT10, "T11": opT11,' '"T9": opT9, "T10": opT10, "T11": opT11, "T12": opT1,' "G3 Ops 混入 T12")
 expect_red "G3 Ops 混入 T12" ./internal/normalize TestOpsTableCoversT1ToT11
 restore internal/normalize/normalize.go "$b" "G3"
 
@@ -158,10 +159,19 @@ b=$(apply tools/gen_fixtures/main.go \
 expect_red "G8 --only 写全集清单" ./tools/gen_fixtures TestOnlyWritesNoManifest
 restore tools/gen_fixtures/main.go "$b" "G8"
 
+# G9：把 tar.mtime 误分类成 T3 → 14 组样张矩阵（expect.json 驱动）必须红。
+# 这是 M3 新增判据的变异：证明 TestFixtureMatrix 不是在"恒绿"。
+b=$(apply internal/attribute/attribute.go \
+  $'\tcase "tar.mtime", "zip.mtime", "gzip.mtime":\n\t\treturn "T1", false, false' \
+  $'\tcase "tar.mtime", "zip.mtime", "gzip.mtime":\n\t\treturn "T3", false, false' \
+  "G9 tar.mtime 误分类")
+expect_red "G9 tar.mtime 误分类" ./internal/cli TestFixtureMatrix
+restore internal/attribute/attribute.go "$b" "G9"
+
 rm -rf "$tmp"
 
 if [ "$fail" -ne 0 ]; then
   echo "结论：$fail 条变异未如期变红"
   exit 1
 fi
-echo "结论：8/8 组 Go 守门变异如期变红，还原后源码字节一致"
+echo "结论：9/9 组 Go 守门变异如期变红，还原后源码字节一致"

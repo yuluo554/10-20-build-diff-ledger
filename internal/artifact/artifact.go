@@ -5,11 +5,15 @@
 //
 // 形态识别只认**字节魔数**，不认扩展名：`.whl` / `.jar` 就是 zip，
 // OCI layer 由 `--layer-kind=oci` 显式声明（不嗅探，避免把普通 tar 猜成镜像层）。
+//
+// M2 起，装载结果还带两类 facts 输入（plan/03 §三，data/README.md §4.3）：
+//   - 条目序号 Index（T5 的判定依据；目录输入没有归档顺序，恒为 -1）；
+//   - 原始头部字节 RawHeader（解析器已消费字段之外的部分，由 facts 计算 sha256）；
+//   - 容器级头部 Container（gzip.mtime/xfl/os、zip.create_system 不属于任何条目）。
 package artifact
 
 import (
-	"archive/tar"
-	"archive/zip"
+	"bufio"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -40,6 +44,32 @@ const (
 	EntrySymlink = "symlink"
 )
 
+// TarInfo 是 tar 条目头里被 facts 抽取的字段（键名映射在 internal/facts）。
+// nil = 该条目不是 tar 装载出来的。
+type TarInfo struct {
+	Mode     int64
+	UID      int64
+	GID      int64
+	Size     int64
+	MTime    int64
+	Typeflag byte
+	Uname    string
+	Gname    string
+	Linkname string
+}
+
+// ZipInfo 是 zip 条目头里被 facts 抽取的字段。
+// nil = 该条目不是 zip 装载出来的。
+type ZipInfo struct {
+	Method         uint16
+	ModifiedDate   uint16
+	ModifiedTime   uint16
+	ExternalAttrs  uint32
+	CreatorVersion uint16
+	Flags          uint16
+	CompressedSize uint32
+}
+
 // Raw 是装载后的一个条目。Path 已规范化为 `/` 分隔、无前导 `./`。
 type Raw struct {
 	Path string
@@ -48,6 +78,40 @@ type Raw struct {
 	// Data 是 file 的内容字节；symlink 存链接目标（无目标则空，与目录同为 0 字节）；
 	// dir 恒为 nil。这样 sha256 对三类条目都有意义，不会把不同软链当成同一条。
 	Data []byte
+
+	// Index 是条目在归档内的序号（0 起，按读取顺序，含目录条目）。
+	// 目录输入没有"归档顺序"这一概念，恒为 -1（显式未知，不伪造 0）。
+	Index int
+	// Source 是条目实际来自哪种容器（OCI 层也记录其底层容器：tar / tar.gz），
+	// 供 facts 选择头部解释方式。目录输入为 KindDir。
+	Source Kind
+	// RawHeader 是"解析器已消费字段之外"的原始头部字节（data/README.md §4.3）。
+	// tar：保留区 + 本条目之前的 PAX/GNU 扩展头原文；zip：本地头/中央目录的
+	// 未抽取字段 + extra + comment；目录输入：文件自身的格式头（由 facts 计算）。
+	RawHeader []byte
+
+	Tar *TarInfo
+	Zip *ZipInfo
+}
+
+// HeaderFact 是容器级头部字段（原样字符串，不做语义解释）。
+type HeaderFact struct {
+	Key   string
+	Value string
+}
+
+// Container 是容器级事实与原始头部。路径约定为空串（`""` = 容器自身）。
+type Container struct {
+	Kind      Kind
+	Facts     []HeaderFact
+	RawHeader []byte
+}
+
+// Document 是一次装载的完整结果。
+type Document struct {
+	Kind      Kind
+	Entries   []Raw
+	Container Container
 }
 
 // Load 装载一个产物，返回条目表与容器形态。
@@ -55,8 +119,17 @@ type Raw struct {
 // maxEntryBytes <= 0 时取 DefaultMaxEntryBytes；超限返回错误并**指名条目**
 // （安全阀必须可见，不静默丢弃）。layerKind 只接受 "" 与 "oci"。
 func Load(name, layerKind string, maxEntryBytes int64) ([]Raw, Kind, error) {
+	doc, err := LoadDocument(name, layerKind, maxEntryBytes)
+	if err != nil {
+		return nil, "", err
+	}
+	return doc.Entries, doc.Kind, nil
+}
+
+// LoadDocument 与 Load 相同，但额外返回容器级事实（M2 新增）。
+func LoadDocument(name, layerKind string, maxEntryBytes int64) (Document, error) {
 	if layerKind != "" && layerKind != "oci" {
-		return nil, "", fmt.Errorf("未知 --layer-kind %q（只支持 oci）", layerKind)
+		return Document{}, fmt.Errorf("未知 --layer-kind %q（只支持 oci）", layerKind)
 	}
 	if maxEntryBytes <= 0 {
 		maxEntryBytes = DefaultMaxEntryBytes
@@ -64,67 +137,96 @@ func Load(name, layerKind string, maxEntryBytes int64) ([]Raw, Kind, error) {
 	info, err := os.Stat(name)
 	if err != nil {
 		// 不回显绝对路径（脱敏纪律，plan/02 §六）
-		return nil, "", fmt.Errorf("无法读取 %q：路径不存在或不可访问", filepath.Base(name))
+		return Document{}, fmt.Errorf("无法读取 %q：路径不存在或不可访问", filepath.Base(name))
 	}
 	base := filepath.Base(name)
 	if info.IsDir() {
 		if layerKind == "oci" {
-			return nil, "", fmt.Errorf("--layer-kind=oci 只接受归档输入（%q 是目录）", base)
+			return Document{}, fmt.Errorf("--layer-kind=oci 只接受归档输入（%q 是目录）", base)
 		}
 		raws, err := loadDir(name, maxEntryBytes)
-		return raws, KindDir, err
+		if err != nil {
+			return Document{}, err
+		}
+		return Document{Kind: KindDir, Entries: raws, Container: Container{Kind: KindDir}}, nil
 	}
 	if !info.Mode().IsRegular() {
-		return nil, "", fmt.Errorf("%q 既不是目录也不是普通文件", base)
+		return Document{}, fmt.Errorf("%q 既不是目录也不是普通文件", base)
 	}
 
 	f, err := os.Open(name)
 	if err != nil {
-		return nil, "", fmt.Errorf("无法读取 %q：路径不存在或不可访问", base)
+		return Document{}, fmt.Errorf("无法读取 %q：路径不存在或不可访问", base)
 	}
 	defer f.Close()
 
 	head := make([]byte, 512)
 	n, err := io.ReadFull(f, head)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-		return nil, "", fmt.Errorf("无法读取 %q：%v", base, err)
+		return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
 	}
 	head = head[:n]
 
 	switch sniff(head) {
 	case KindTarGz:
+		// 嗅探已读掉前 512 字节：解析成员头前必须拨回 0。
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, "", fmt.Errorf("无法读取 %q：%v", base, err)
+			return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
 		}
-		raws, err := loadTar(f, true, maxEntryBytes, base)
-		return raws, ociKind(KindTarGz, layerKind), err
+		c, err := readGzipContainer(f)
+		if err != nil {
+			return Document{}, fmt.Errorf("%q：%v", base, err)
+		}
+		c.Kind = KindTarGz
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
+		}
+		zr, err := gzip.NewReader(f)
+		if err != nil {
+			return Document{}, fmt.Errorf("%q：gzip 头无法解析（%v）", base, err)
+		}
+		defer zr.Close()
+		raws, err := loadTar(bufio.NewReader(zr), maxEntryBytes, base, KindTarGz)
+		if err != nil {
+			return Document{}, err
+		}
+		return Document{Kind: ociKind(KindTarGz, layerKind), Entries: raws, Container: c}, nil
 	case KindZip:
 		if layerKind == "oci" {
-			return nil, "", fmt.Errorf("%q 是 zip，不能按 OCI layer tar 装载", base)
+			return Document{}, fmt.Errorf("%q 是 zip，不能按 OCI layer tar 装载", base)
 		}
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, "", fmt.Errorf("无法读取 %q：%v", base, err)
+			return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
 		}
-		raws, err := loadZip(f, info.Size(), maxEntryBytes, base)
-		return raws, KindZip, err
+		raws, c, err := loadZip(f, info.Size(), maxEntryBytes, base)
+		if err != nil {
+			return Document{}, err
+		}
+		c.Kind = KindZip
+		return Document{Kind: KindZip, Entries: raws, Container: c}, nil
 	case KindTar:
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, "", fmt.Errorf("无法读取 %q：%v", base, err)
+			return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
 		}
-		raws, err := loadTar(f, false, maxEntryBytes, base)
-		return raws, ociKind(KindTar, layerKind), err
+		raws, err := loadTar(bufio.NewReader(f), maxEntryBytes, base, KindTar)
+		if err != nil {
+			return Document{}, err
+		}
+		return Document{Kind: ociKind(KindTar, layerKind), Entries: raws,
+			Container: Container{Kind: KindTar}}, nil
 	default:
 		// 魔数不认识：仍尝试按 tar 解析（v7 tar 没有 ustar 魔数）。
 		// 解析失败**或一个条目都没读出来** → 显式报"不支持的格式"，
 		// 绝不把"看不懂"当成"空树 / 一致"（静默通过的经典漏洞）。
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, "", fmt.Errorf("无法读取 %q：%v", base, err)
+			return Document{}, fmt.Errorf("无法读取 %q：%v", base, err)
 		}
-		raws, err := loadTar(f, false, maxEntryBytes, base)
+		raws, err := loadTar(bufio.NewReader(f), maxEntryBytes, base, KindTar)
 		if err != nil || len(raws) == 0 {
-			return nil, "", fmt.Errorf("%q：无法识别容器格式（支持目录 / tar / tar.gz / zip / whl / jar）", base)
+			return Document{}, fmt.Errorf("%q：无法识别容器格式（支持目录 / tar / tar.gz / zip / whl / jar）", base)
 		}
-		return raws, ociKind(KindTar, layerKind), nil
+		return Document{Kind: ociKind(KindTar, layerKind), Entries: raws,
+			Container: Container{Kind: KindTar}}, nil
 	}
 }
 
@@ -202,14 +304,15 @@ func loadDir(root string, maxEntryBytes int64) ([]Raw, error) {
 		}
 		switch {
 		case d.IsDir():
-			out = append(out, Raw{Path: relSlash, Kind: EntryDir})
+			out = append(out, Raw{Path: relSlash, Kind: EntryDir, Index: -1, Source: KindDir})
 		case d.Type()&os.ModeSymlink != 0:
 			target, err := os.Readlink(p)
 			if err != nil {
 				return fmt.Errorf("条目 %q：无法读取软链目标（%v）", relSlash, err)
 			}
 			data := []byte(filepath.ToSlash(target))
-			out = append(out, Raw{Path: relSlash, Kind: EntrySymlink, Size: int64(len(data)), Data: data})
+			out = append(out, Raw{Path: relSlash, Kind: EntrySymlink, Size: int64(len(data)), Data: data,
+				Index: -1, Source: KindDir})
 		case d.Type().IsRegular():
 			info, err := d.Info()
 			if err != nil {
@@ -222,7 +325,8 @@ func loadDir(root string, maxEntryBytes int64) ([]Raw, error) {
 			if err != nil {
 				return fmt.Errorf("条目 %q：无法读取内容（%v）", relSlash, err)
 			}
-			out = append(out, Raw{Path: relSlash, Kind: EntryFile, Size: int64(len(data)), Data: data})
+			out = append(out, Raw{Path: relSlash, Kind: EntryFile, Size: int64(len(data)), Data: data,
+				Index: -1, Source: KindDir})
 		default:
 			return fmt.Errorf("条目 %q：不支持的目录项类型 %v", relSlash, d.Type())
 		}
@@ -232,113 +336,4 @@ func loadDir(root string, maxEntryBytes int64) ([]Raw, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-func loadTar(r io.Reader, gzipped bool, maxEntryBytes int64, base string) ([]Raw, error) {
-	if gzipped {
-		zr, err := gzip.NewReader(r)
-		if err != nil {
-			return nil, fmt.Errorf("%q：gzip 头无法解析（%v）", base, err)
-		}
-		defer zr.Close()
-		r = zr
-	}
-	tr := tar.NewReader(r)
-	var out []Raw
-	for {
-		h, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%q：tar 解析失败（%v）", base, err)
-		}
-		rel, err := NormalizeRel(h.Name)
-		if err != nil {
-			return nil, fmt.Errorf("%q：%v", base, err)
-		}
-		if rel == "" {
-			continue
-		}
-		switch h.Typeflag {
-		case tar.TypeReg, tar.TypeRegA:
-			if h.Size > maxEntryBytes {
-				return nil, fmt.Errorf("%q：条目 %q 大小 %d 超过上限 %d", base, rel, h.Size, maxEntryBytes)
-			}
-			data, err := io.ReadAll(io.LimitReader(tr, h.Size))
-			if err != nil {
-				return nil, fmt.Errorf("%q：条目 %q 读取失败（%v）", base, rel, err)
-			}
-			if int64(len(data)) != h.Size {
-				return nil, fmt.Errorf("%q：条目 %q 声明 %d 字节、实际 %d 字节（归档被截断？）", base, rel, h.Size, len(data))
-			}
-			out = append(out, Raw{Path: rel, Kind: EntryFile, Size: h.Size, Data: data})
-		case tar.TypeDir:
-			out = append(out, Raw{Path: rel, Kind: EntryDir})
-		case tar.TypeSymlink, tar.TypeLink:
-			data := []byte(filepath.ToSlash(h.Linkname))
-			out = append(out, Raw{Path: rel, Kind: EntrySymlink, Size: int64(len(data)), Data: data})
-		default:
-			// 设备文件/FIFO 等：显式拒绝，不静默跳过（未知即显式）
-			return nil, fmt.Errorf("%q：条目 %q 的类型 %q 不受支持", base, rel, string(rune(h.Typeflag)))
-		}
-	}
-	return out, nil
-}
-
-func loadZip(f *os.File, size, maxEntryBytes int64, base string) ([]Raw, error) {
-	zr, err := zip.NewReader(f, size)
-	if err != nil {
-		return nil, fmt.Errorf("%q：zip 解析失败（%v）", base, err)
-	}
-	var out []Raw
-	for _, zf := range zr.File {
-		rel, err := NormalizeRel(zf.Name)
-		if err != nil {
-			return nil, fmt.Errorf("%q：%v", base, err)
-		}
-		if rel == "" {
-			continue
-		}
-		mode := zf.Mode()
-		switch {
-		case zf.FileInfo().IsDir() || strings.HasSuffix(zf.Name, "/"):
-			out = append(out, Raw{Path: rel, Kind: EntryDir})
-			continue
-		case mode&os.ModeSymlink != 0:
-			// 软链目标存放在 zip 的内容里
-			data, err := readZipEntry(zf, maxEntryBytes)
-			if err != nil {
-				return nil, fmt.Errorf("%q：条目 %q %v", base, rel, err)
-			}
-			out = append(out, Raw{Path: rel, Kind: EntrySymlink, Size: int64(len(data)), Data: data})
-			continue
-		default:
-			if zf.UncompressedSize64 > uint64(maxEntryBytes) {
-				return nil, fmt.Errorf("%q：条目 %q 大小 %d 超过上限 %d", base, rel, zf.UncompressedSize64, maxEntryBytes)
-			}
-			data, err := readZipEntry(zf, maxEntryBytes)
-			if err != nil {
-				return nil, fmt.Errorf("%q：条目 %q %v", base, rel, err)
-			}
-			out = append(out, Raw{Path: rel, Kind: EntryFile, Size: int64(len(data)), Data: data})
-		}
-	}
-	return out, nil
-}
-
-func readZipEntry(zf *zip.File, maxEntryBytes int64) ([]byte, error) {
-	rc, err := zf.Open()
-	if err != nil {
-		return nil, fmt.Errorf("打开失败（%v）", err)
-	}
-	defer rc.Close()
-	data, err := io.ReadAll(io.LimitReader(rc, maxEntryBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("读取失败（%v）", err)
-	}
-	if int64(len(data)) > maxEntryBytes {
-		return nil, fmt.Errorf("解压后超过上限 %d 字节", maxEntryBytes)
-	}
-	return data, nil
 }
