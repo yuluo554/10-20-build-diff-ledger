@@ -30,7 +30,7 @@
   （`dist/SHA256SUMS` 同内容；`bdiff version` → `0.1.0`）。
 - 公开仓库：https://github.com/yuluo554/10-20-build-diff-ledger （2026-10-20 建，首推 main + tag v0.1.0）。
 - 首推 CI（修复后全绿）：run id `39448714961`（sha `30de957`；layout / determinism / Test 2×OS × 2×Go 六 job 全 ✓）。
-  前两次失败 run 据实留痕：`39442868080`/`39442866112`（R9：deflate 漂移 + buildvcs）、`39443952006`/`39448230444`（R9 残余 + forbidden-import 扫描误报 guard.go 字符串字面量）。
+  最终 run（收尾提交 e6e0c6e）：`39455459880` 全绿。修复过程失败 run 据实留痕：`39442868080`/`39442866112`（R9：deflate 漂移 + buildvcs）、`39443952006`/`39448230444`（R9 残余 + forbidden-import 扫描误报 guard.go 字符串字面量）。
 - GitHub Release：https://github.com/yuluo554/10-20-build-diff-ledger/releases/tag/v0.1.0
   附件：`bdiff-windows-amd64.exe`（API digest 与本地 `05e7a4ef…` 一致）、`SHA256SUMS`。
 
