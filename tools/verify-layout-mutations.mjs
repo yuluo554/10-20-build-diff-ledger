@@ -143,8 +143,8 @@ const MUTATIONS = [
     apply: () =>
       mutate(
         "plan/06-交付对标与决策.md",
-        "| G5 | 远端 Release 页未建（产物已在本地留副本 + sha256，见发布留档） | 首推后建 Release 并附产物 |",
-        "| G5 | 待 M0 收尾 | 首推后建 Release 并附产物 |",
+        "| G5 | ~~远端 Release 页未建~~ 已关闭：Release `v0.1.0` 已建并附产物，附件 digest 与本地留副本一致（见发布留档 §二） | — |",
+        "| G5 | 待 M0 收尾 | — |",
         "V9",
       ),
   },
@@ -157,8 +157,8 @@ const MUTATIONS = [
     apply: () =>
       mutate(
         "plan/RELEASE-M6.md",
-        "- （待回填）GitHub Release URL 与附件清单：",
-        "- 先跑 `tools/definitely-missing.go`\n- （待回填）GitHub Release URL 与附件清单：",
+        "- 公开仓库：https://github.com/yuluo554/10-20-build-diff-ledger （2026-10-20 建，首推 main + tag v0.1.0）。",
+        "- 先跑 `tools/definitely-missing.go`\n- 公开仓库：https://github.com/yuluo554/10-20-build-diff-ledger （2026-10-20 建，首推 main + tag v0.1.0）。",
         "V10",
       ),
   },

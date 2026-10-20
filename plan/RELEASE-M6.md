@@ -28,8 +28,11 @@
 - `dist/bdiff-windows-amd64.exe` sha256（本地留副本，2026-10-20 实测，R9 终版修复后重建）：
   `05e7a4efee1519004e8734dc432afdff74c17842168c65146b54abddc7f80488`
   （`dist/SHA256SUMS` 同内容；`bdiff version` → `0.1.0`）。
-- （待回填）GitHub Release URL 与附件清单：
-- （待回填）公开仓库 URL 与首推 CI run id：
+- 公开仓库：https://github.com/yuluo554/10-20-build-diff-ledger （2026-10-20 建，首推 main + tag v0.1.0）。
+- 首推 CI（修复后全绿）：run id `39448714961`（sha `30de957`；layout / determinism / Test 2×OS × 2×Go 六 job 全 ✓）。
+  前两次失败 run 据实留痕：`39442868080`/`39442866112`（R9：deflate 漂移 + buildvcs）、`39443952006`/`39448230444`（R9 残余 + forbidden-import 扫描误报 guard.go 字符串字面量）。
+- GitHub Release：https://github.com/yuluo554/10-20-build-diff-ledger/releases/tag/v0.1.0
+  附件：`bdiff-windows-amd64.exe`（API digest 与本地 `05e7a4ef…` 一致）、`SHA256SUMS`。
 
 ## 三、阶段 7 覆盖对账表
 
@@ -37,7 +40,7 @@
 |---|---|---|
 | 干净环境逐条跑通 README 命令 | 实现 | `git archive` 解包树实测（§一） |
 | 脱敏四步零命中 | 实现 | §一扫描记录 + `TestReportMarkdownNoLeak` |
-| 单二进制在无 Go 工具链机器运行 | 待首推 | 产物随 Release 分发后据实验证 |
-| CI 实跑（U1） | 待首推 | 首推后据实补记 run id |
-| 跨平台 CI 矩阵（U2） | 待首推 | `ci.yml` ubuntu 矩阵已配置，待远端验证 |
+| 单二进制在无 Go 工具链机器运行 | 实现 | Release 附件 `bdiff-windows-amd64.exe`（静态编译、零运行时；`GOOS` 交叉构建待后续版本按需） |
+| CI 实跑（U1） | 实现 | 首推 run `39448714961` 全绿（layout / determinism / 2×OS × 2×Go 矩阵） |
+| 跨平台 CI 矩阵（U2） | 实现 | ubuntu-latest + windows-latest × go1.22/1.24 四组合全绿 |
 | 真实发行版产物覆盖（U5/R4） | 不适用 | 边界承诺：仅合成样张，不承诺真实发行版 |
