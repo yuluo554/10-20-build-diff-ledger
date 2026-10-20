@@ -107,6 +107,10 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 node tools/check-sprint-layout.mjs   # 布局门（方法论装订），必须先绿
 go vet ./... && go test ./...        # 全量测试
 go run ./tools/gen_fixtures --out data/fixtures --check   # 样张重建校验（M1 起）
+
+# 守门的变异验证：证明上面那些门不是"恒绿装饰"
+node tools/verify-layout-mutations.mjs   # 布局门，11 组变异必须全红
+bash tools/verify-go-guards.sh           # Go 侧守门，6 组变异必须全红
 ```
 
 本仓库遵循 `ai-tool-project-sprint` 方法论：计划与验收口径全在 `plan/`（入口 `plan/00-README总览.md`），

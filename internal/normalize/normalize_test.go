@@ -21,14 +21,35 @@ func TestTreeDigestIsDeterministic(t *testing.T) {
 	}
 }
 
-// TestTreeDigestSeparators 断言拼接规则：relpath ‖ 0x00 ‖ sha256 ‖ 0x0A。
-// 用两条"拼接后同字节流"的构造反证分隔符必须存在。
+// TestTreeDigestSeparators 断言拼接规则：relpath ‖ 0x00 ‖ sha256(entry) ‖ 0x0A。
+//
+// **这条测试本身不足以守分隔符**（实测）：hex 摘要是定长 64 字符，去掉 0x00 后
+// "ab" 与 "a"+"b" 的字节流仍然不同，所以"两种切分给出不同摘要"在任何实现下都成立。
+// 变异验证 G5（删掉 h.Write([]byte{0x00})）跑出**通过**——正是"断言没在测它声称在测的东西"。
+// 正解 = 下方 TestTreeDigestKnownAnswer：由**独立实现**（Python hashlib）算出期望值，
+// 少一个字节就对不上。这条保留，作为"切分不撞"的补充断言。
 func TestTreeDigestSeparators(t *testing.T) {
-	// 路径 "ab" vs "a"+"b" 若无分隔符会撞；这里用不同切分验证结果不同。
 	x := TreeDigest(nil, []Entry{{Path: "ab", Bytes: []byte("")}})
 	y := TreeDigest(nil, []Entry{{Path: "a", Bytes: []byte("")}, {Path: "b", Bytes: []byte("")}})
 	if x == y {
-		t.Fatal("不同条目切分给出了相同摘要（分隔符缺失）")
+		t.Fatal("不同条目切分给出了相同摘要")
+	}
+}
+
+// TestTreeDigestKnownAnswer 是 §4.5 的**已知答案**（KAT）：
+// 期望值由独立实现（Python hashlib，见 data/README.md §4.5 的拼接式）算出，不由本包产出。
+// 这是"分隔符/分隔符顺序/hex 编码"三者唯一的硬证据。
+// 变异验证：删 h.Write([]byte{0x00}) 或把 0x0A 换成别的 → 本测试必须红。
+func TestTreeDigestKnownAnswer(t *testing.T) {
+	const want = "19d4ece49af4977a167294d9b8c0e17fd3d439cc8955b6c8da615bcb994b1117"
+	in := []Entry{
+		{Path: "b.txt", Bytes: []byte("bbb")},
+		{Path: "a.txt", Bytes: []byte("aaa")},
+		{Path: "nested/c.bin", Bytes: []byte{0, 1, 2, 255}},
+	}
+	if got := TreeDigest(nil, in); got != want {
+		t.Fatalf("树摘要与独立实现不一致\n got=%s\nwant=%s\n"+
+			"（检查 §4.5 的拼接式：relpath ‖ 0x00 ‖ sha256(entry) ‖ 0x0A；条目按 relpath 字节序）", got, want)
 	}
 }
 

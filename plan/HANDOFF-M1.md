@@ -8,7 +8,8 @@
 | 项 | 状态 | 证据（可指认） |
 |---|---|---|
 | 方法论装订三件 | ✅ | `AGENTS.md` + `tools/check-sprint-layout.mjs`（11 条判据）+ `plan/00` 顶部装订行 |
-| 布局门变异验证 | ✅ **10/10 全红** | `node tools/verify-layout-mutations.mjs` → `结论：10/10 组变异如期变红`，还原后基线全绿 |
+| 布局门变异验证 | ✅ **11/11 全红** | `node tools/verify-layout-mutations.mjs` → `结论：11/11 组变异如期变红`，还原后基线全绿 |
+| Go 守门变异验证 | ✅ **6/6 全红** | `bash tools/verify-go-guards.sh` → `结论：6/6 组 Go 守门变异如期变红，还原后源码字节一致` |
 | 计划套件 | ✅ | `plan/00`–`plan/06` 七份，`plan/05` §一 为状态权威之一 |
 | 数值口径 | ✅ | `data/README.md` §四（T1–T12 / op / 树摘要 / 退出码 / `\|S\|≤12`） |
 | 可运行骨架 | ✅ | `go build ./...`、`go vet ./...`、`go test ./...` 本地通过；`bdiff version` / `bdiff selftest` 实跑通过 |
@@ -86,6 +87,8 @@
 | `winget install` 后台无输出、卡住 | 5 分钟后 `go` 仍不见（2026-10-20） | 别用 winget；直接下载 zip 解压 |
 | 表格里的 `\|` 转义会破坏按列解析 | 布局门首版把 `\|S\|≤12` 当列分隔符 → M4 状态"既无 ✅ 也无 ⬜" | 门的 `splitRow` 先把 `\|` 替换成占位符再切（已修） |
 | 写成"示例路径"的字面量会被文档工具判据当真 | `plan/05` 曾把一个**不存在的**脚本完整路径写进变异说明 → `LAYOUT.DOC_TOOLS` 红 | 文档里描述变异时不要写出完整的 `tools/<name>.<ext>` 形态；用"某个不存在的 tools 脚本"这类描述（本行也踩过一次） |
+| **变异脚本自己是假门**：`go` 不在 PATH 时每条 `go test` 都非零 | 首版 `verify-go-guards.sh` 把 6/6 全判成"如期变红"，而它们只是"命令不存在"（2026-10-20 实测） | ① 脚本先 `go version` 自证可用，否则 exit 1；② 变红判据改为"输出含 `--- FAIL: <TestName>`"，不是只看退出码；③ 编译错单独判 FAIL |
+| **"不撞"型断言守不住拼接格式** | `TestTreeDigestSeparators`（不同切分给不同摘要）在删掉 0x00 后**仍通过**——hex 定长，切分本来就撞不上 | 补 `TestTreeDigestKnownAnswer`：期望值由独立实现（Python hashlib）按 §4.5 算出，少一个字节即失配 |
 
 ## 六、DoD 逐项 checklist（M1 出口时逐条打勾）
 
@@ -109,6 +112,7 @@ export PATH="$LOCALAPPDATA/Programs/Go/bin:$PATH"
 # 门（每次开工第一条）
 node tools/check-sprint-layout.mjs
 node tools/verify-layout-mutations.mjs
+bash tools/verify-go-guards.sh
 
 # Go
 go build ./...

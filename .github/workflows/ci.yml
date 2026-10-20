@@ -22,6 +22,8 @@ jobs:
           node-version: "20"
       - name: "Sprint layout gate"
         run: node tools/check-sprint-layout.mjs
+      - name: "Layout gate mutation verification (gate must be falsifiable)"
+        run: node tools/verify-layout-mutations.mjs
 
   test:
     name: "Test (${{ matrix.os }}, go ${{ matrix.go }})"
@@ -70,6 +72,10 @@ jobs:
             exit 1
           fi
           echo "ok: 无受限 import"
+      - name: "Go guard mutation verification"
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
+        shell: bash
+        run: bash tools/verify-go-guards.sh
 
   determinism:
     name: "Determinism (double build byte-equal)"

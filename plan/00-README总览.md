@@ -25,6 +25,7 @@
 | `AGENTS.md` | 方法论锚点（门命令 + 强制布局 + 三条硬约束 + 环境事实） | ✅ v1（2026-10-20，M0） |
 | `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ v1（2026-10-20，M0） |
 | `tools/verify-layout-mutations.mjs` | 布局门变异验证（11 组，全红） | ✅ v1（2026-10-20，M0） |
+| `tools/verify-go-guards.sh` | Go 守门变异验证（6 组，全红） | ✅ v1（2026-10-20，M0） |
 | `data/README.md` | 依据查证（三态 + URL + 基准日）/ 数据源可获取性 / 合成数据纪律 / 数值口径（T1–T12、归一化 op、树摘要、退出码、`\|S\|≤12`） | ✅ v1（2026-10-20，阶段 4） |
 | `.gitignore` | Go 标准模板 + 生成物输出目录 + 发布产物目录 | ✅ v1 |
 | `go.mod` / `cmd/bdiff/` / `internal/` | 可运行骨架（version / selftest 可用，五模块待 M1–M5） | ✅ v1（2026-10-20，M0） |
