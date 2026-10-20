@@ -1,6 +1,7 @@
 package artifact
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -185,6 +186,44 @@ func TestRootEntryNormalizesToEmpty(t *testing.T) {
 		}
 		if got != "" {
 			t.Errorf("NormalizeRel(%q) = %q，期望空串（根条目）", in, got)
+		}
+	}
+}
+
+// TestWhlJarAreZipByContent 断言形态识别只认**字节**，不认扩展名：
+// 同一个 zip 换成 .whl / .jar 后缀，装载结果必须与 .zip 完全一致
+// （plan/03 §二：whl = zip + dist-info 视为普通条目，jar = zip）。
+func TestWhlJarAreZipByContent(t *testing.T) {
+	src := fixture("c07-archive-hdr", "pair", "left", "synthpkg-0.1.0.zip")
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, wantKind, err := Load(src, "", DefaultMaxEntryBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for _, ext := range []string{".whl", ".jar"} {
+		p := filepath.Join(dir, "synthpkg-0.1.0"+ext)
+		if err := os.WriteFile(p, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got, kind, err := Load(p, "", DefaultMaxEntryBytes)
+		if err != nil {
+			t.Fatalf("%s 装载失败: %v", ext, err)
+		}
+		if kind != KindZip || kind != wantKind {
+			t.Fatalf("%s 的 kind = %q，期望 %q", ext, kind, wantKind)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("%s 条目数 %d != zip %d", ext, len(got), len(want))
+		}
+		for i := range want {
+			if got[i].Path != want[i].Path || got[i].Kind != want[i].Kind ||
+				got[i].Size != want[i].Size || string(got[i].Data) != string(want[i].Data) {
+				t.Fatalf("%s 第 %d 个条目与 zip 不一致", ext, i)
+			}
 		}
 	}
 }
