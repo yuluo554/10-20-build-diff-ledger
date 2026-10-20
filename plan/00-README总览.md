@@ -159,7 +159,7 @@ go version → go1.27.0 windows/amd64
 
 | 项 | 实测 |
 |---|---|
-| 机器 | ASUS TUF Gaming F16 FX607JVR（CPU：Intel Core i9-14900HX） |
+| 机器 | 笔记本（CPU：Intel Core i9-14900HX；机型名按脱敏纪律略去） |
 | 命令 | `go test ./internal/cli -run '^$' -bench BenchmarkMinimizeSearch -benchtime=5x -count=1` |
 | 早期命中（`c01-mtime`：候选 ∅ → `[T1]`） | `669560 ns/op` ≈ 0.67 ms |
 | 无解全扫（`c12-mixed`：4096 个候选 × 两侧摘要） | `649155960 ns/op` ≈ 0.65 s |

@@ -6,7 +6,7 @@
 `bdiff` 是**纯本地 CLI**：单二进制、零第三方依赖、**不跑构建、不联网、不写输入目录**。
 输入只有两份现成的产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar），输出是确定性报告与一个退出码。
 
-**状态**：`v0.1.0-dev` · M4（minimize）。14 组合成样张、`bdiff align` / `bdiff facts` / 归因（`bdiff compare` 的 JSON 输出）、最小原因集穷举搜索已落地；report 从 M5 起落地。
+**状态**：`v0.1.0` · M6（发布）。全部 M0–M6 功能已落地：14 组合成样张、`bdiff align` / `bdiff facts` / `bdiff compare`（确定性报告 + 最小原因集 + 退出码门禁）；版本定版于 `internal/version`。
 当前状态的真值在 `plan/05-里程碑与验收.md` §一；发布状态只以 Release 页与 `plan/` 为准。
 
 ## 一、里程碑状态
