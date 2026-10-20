@@ -190,6 +190,8 @@
 
 `--budget=Tn,Tm` 只影响"归一化后一致"时的 0/2 判定：实际差异类别 ⊆ 白名单 → 0；否则维持 2。**白名单不得把 3 降为 2 或 0。**
 
+`--fail-on=residue` 只把"仅元数据差异"（2）降为 0，**不得把 3 降级**（与 `--budget` 同一条纪律）；默认 `--fail-on=any` 即上表。判定顺序固定：先 `residue>0 || T12>0 → 3`，再 `S==∅ → 0`，最后 `实际类别 ⊆ budget ? 0 : 2`。`S == ∅` 与"无解"必须区分（后者已与 `residue>0` 绑定）。
+
 ### 4.7 固定占位值
 
 | 占位 | 值 |
@@ -204,6 +206,20 @@
 ### 4.8 报告键序（固定）
 
 `schema_version` → `tool_version` → `left` → `right` → `counts` → `renamed` → `added` → `removed` → `residue_bytes` → `minimal_cause_set` → `residual_items` → `notes`。`left`/`right` 各含 `basename` 与 `sha256`（**不写绝对路径**）。`counts` 键序固定为 T1…T12 后接 `total`。
+
+各字段的取值口径（M5 落地；报告字段的**唯一**定义）：
+
+| 字段 | 口径 |
+|---|---|
+| `left.basename` / `right.basename` | 输入路径的 basename（`filepath.Base`）；目录输入即目录名 |
+| `left.sha256` / `right.sha256` | 文件输入 = 该文件字节的 sha256；目录输入 = `concat_{relpath 升序}( relpath ‖ 0x00 ‖ sha256(内容) ‖ 0x0A )` 的 sha256。两者都不含路径前缀、不含时钟 |
+| `renamed` | align 判定的改名，`[{from,to}]`，按 `to` 升序；`from` = 左侧旧路径、`to` = 右侧新路径（§4.4） |
+| `added` / `removed` | align 判定的新增 / 删除 relpath，各自升序；**不含**改名的两侧路径 |
+| `minimal_cause_set` | 有解 = 规则数组（`[]` = 完全一致）；无解 = `null`。无解时**必须** `residue_bytes > 0`（§4.5） |
+| `residual_items` | S = T1–T11 归一化后仍不同的条目，按 `path` 升序，每条 `{path, rule_id, bytes_different}`。`rule_id` 恒为 `T12`；`bytes_different` 的口径 = §4.5 的逐条目 `entry_stream` 不同字节数，**其和恒等于 `residue_bytes`** |
+| `notes` | 口径性提示（§4.1 的 `rule_overlap`），不参与判定 |
+
+`--out DIR` 落 `report.json` + `report.md` 两份（目录不存在时自建）；`--format=json|md|both` 只决定 **stdout** 形态（`both` = report.json 后接一个 `\n` 再输出 report.md）。写盘失败 → exit 1（不静默）。
 
 ### 4.9 条目常量与对齐语义（M1 落地）
 

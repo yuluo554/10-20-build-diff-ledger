@@ -139,3 +139,100 @@ func TestVerdictLineReflectsState(t *testing.T) {
 		t.Fatal("空集+零残留却未判'完全一致'")
 	}
 }
+
+// TestBuildDistinguishesNullAndEmpty 是 §4.5 的 `null` / `[]` 区分（K31 的报告侧落点）：
+// found=false → JSON null；found=true 且集合为空 → JSON []。两者混淆会让
+// "无解"被读成"完全一致"。
+func TestBuildDistinguishesNullAndEmpty(t *testing.T) {
+	// 无解：必须带 residue>0，否则口径冲突（见下一个断言）
+	noSolution, err := Build(Input{ResidueBytes: 1, MinimalCauseSetFound: false})
+	if err != nil {
+		t.Fatalf("无解 + residue>0 应被接受: %v", err)
+	}
+	buf, err := MarshalCanonical(noSolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(buf, []byte(`"minimal_cause_set":null`)) {
+		t.Fatalf("无解应序列化为 null：%s", buf)
+	}
+
+	identical, err := Build(Input{ResidueBytes: 0, MinimalCauseSetFound: true, MinimalCauseSet: nil})
+	if err != nil {
+		t.Fatalf("完全一致应被接受: %v", err)
+	}
+	buf, err = MarshalCanonical(identical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(buf, []byte(`"minimal_cause_set":[]`)) {
+		t.Fatalf("完全一致应序列化为 []：%s", buf)
+	}
+}
+
+// TestBuildRejectsContradiction 断言 §4.5 的"无解 ⇔ residue_bytes > 0"在构造处就被挡住：
+// 自相矛盾的报告不得落盘（静默产出会让下游把"无解"当"零残留"）。
+func TestBuildRejectsContradiction(t *testing.T) {
+	if _, err := Build(Input{ResidueBytes: 0, MinimalCauseSetFound: false}); err == nil {
+		t.Fatal("无解但 residue_bytes = 0 必须报错（§4.5 要求两者同真）")
+	}
+}
+
+// TestBuildFillsZeroCounts 断言 Build 会补齐缺失的 counts 键（cli 只传非零也无妨）。
+func TestBuildFillsZeroCounts(t *testing.T) {
+	r, err := Build(Input{
+		Counts:               map[string]int{"T1": 3, "total": 3},
+		ResidueBytes:         0,
+		MinimalCauseSetFound: true,
+		MinimalCauseSet:      []string{"T1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range model.RuleIDs {
+		if _, ok := r.Counts.Values[rule]; !ok {
+			t.Fatalf("counts 缺键 %s", rule)
+		}
+	}
+	if r.Counts.Values["T1"] != 3 || r.Counts.Values["T12"] != 0 || r.Counts.Values["total"] != 3 {
+		t.Fatalf("counts 取值错：%v", r.Counts.Values)
+	}
+}
+
+// TestMarkdownTemplateSections 断言 md 的固定模板骨架（plan/03 §六）：
+// 六节齐、改名/新增/删除各有清单、残留逐条列出。
+func TestMarkdownTemplateSections(t *testing.T) {
+	r, err := Build(Input{
+		Left:                 Side{Basename: "l.tar", SHA256: strings.Repeat("a", 64)},
+		Right:                Side{Basename: "r.tar", SHA256: strings.Repeat("b", 64)},
+		Counts:               map[string]int{"T12": 1, "total": 1},
+		Renamed:              []RenamedItem{{From: "pkg/old.py", To: "pkg/new.py"}},
+		Added:                []string{"pkg/extra.txt"},
+		Removed:              []string{"pkg/legacy.txt"},
+		ResidueBytes:         7,
+		MinimalCauseSetFound: false,
+		ResidualItems:        []ResidualItem{{Path: "pkg/core.py", RuleID: "T12", BytesDifferent: 7}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	md := string(RenderMarkdown(r))
+	for _, want := range []string{
+		"# bdiff 差异归因账本",
+		"## 输入", "## 分类计数", "## 改名 / 新增 / 删除",
+		"### 改名", "### 新增", "### 删除",
+		"## 残留", "## 最小原因集", "## 判定",
+		"`pkg/old.py`", "`pkg/new.py`", "`pkg/extra.txt`", "`pkg/legacy.txt`",
+		"`pkg/core.py`", "`null`", "有残留",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("report.md 缺 %q：\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "\r") {
+		t.Fatal("report.md 含 CR")
+	}
+	if !strings.HasSuffix(md, "\n") {
+		t.Fatal("report.md 未以 \\n 结尾")
+	}
+}

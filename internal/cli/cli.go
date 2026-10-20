@@ -5,12 +5,15 @@
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/align"
@@ -19,6 +22,7 @@ import (
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/facts"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/minimize"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/model"
+	"github.com/yuluo554/10-20-build-diff-ledger/internal/normalize"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/report"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/version"
 )
@@ -77,7 +81,7 @@ func usage(w io.Writer) {
   bdiff align    --left L --right R [--format json|md] [--layer-kind=oci]
   bdiff facts    --artifact A [--format json]
   bdiff compare  --left L --right R [--out DIR] [--format json|md|both]
-                 [--budget T1,T2|all] [--layer-kind=oci]
+                 [--budget T1,T2|all] [--fail-on any|residue] [--layer-kind=oci]
   bdiff version
   bdiff selftest
 
@@ -203,13 +207,14 @@ func runFacts(args []string, stdout io.Writer) (int, error) {
 }
 
 func runCompare(args []string, stdout io.Writer) (int, error) {
-	var left, right, out, format, budgetRaw, layerKind string
+	var left, right, out, format, budgetRaw, failOnRaw, layerKind string
 	fs := newFlagSet("compare", os.Stderr)
 	fs.StringVar(&left, "left", "", "左侧产物路径")
 	fs.StringVar(&right, "right", "", "右侧产物路径")
-	fs.StringVar(&out, "out", "", "输出目录（report.json / report.md；M5 落地）")
-	fs.StringVar(&format, "format", "json", "输出格式：json|md|both")
+	fs.StringVar(&out, "out", "", "输出目录（写 report.json / report.md）")
+	fs.StringVar(&format, "format", "json", "stdout 格式：json|md|both")
 	fs.StringVar(&budgetRaw, "budget", "", "CI 允许的差异类别：T1,T2 或 all")
+	fs.StringVar(&failOnRaw, "fail-on", "any", "失败判据：any|residue")
 	fs.StringVar(&layerKind, "layer-kind", "", "容器提示：oci")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage, nil
@@ -222,42 +227,213 @@ func runCompare(args []string, stdout io.Writer) (int, error) {
 	if err != nil {
 		return ExitUsage, err
 	}
-	if out != "" || format != "json" {
-		// M3 只落地归因；report.json/md 的落盘与 --format 组合在 M5。
-		return ExitUsage, errors.New("compare 的 --out / --format=md|both 在 M5 落地（M3 只输出归因 JSON）")
+	failOn, err := parseFailOn(failOnRaw)
+	if err != nil {
+		return ExitUsage, err
 	}
 	if err := requirePaths(left, right); err != nil {
 		return ExitUsage, err
 	}
 
-	leftDoc, err := artifact.LoadDocument(left, layerKind, 0)
+	rep, err := buildReport(left, right, layerKind)
 	if err != nil {
 		return ExitUsage, err
 	}
-	rightDoc, err := artifact.LoadDocument(right, layerKind, 0)
+	jsonBuf, err := report.MarshalCanonical(rep)
 	if err != nil {
 		return ExitUsage, err
+	}
+	mdBuf := report.RenderMarkdown(rep)
+
+	if out != "" {
+		if err := writeReportDir(out, jsonBuf, mdBuf); err != nil {
+			return ExitUsage, err
+		}
+	}
+	switch format {
+	case "json":
+		if _, err := stdout.Write(jsonBuf); err != nil {
+			return ExitUsage, err
+		}
+	case "md":
+		if _, err := stdout.Write(mdBuf); err != nil {
+			return ExitUsage, err
+		}
+	case "both":
+		// 未给 --out 时，stdout 依次是 report.json、空行、report.md（顺序固定、可断言）。
+		if _, err := stdout.Write(jsonBuf); err != nil {
+			return ExitUsage, err
+		}
+		if _, err := io.WriteString(stdout, "\n"); err != nil {
+			return ExitUsage, err
+		}
+		if _, err := stdout.Write(mdBuf); err != nil {
+			return ExitUsage, err
+		}
+	}
+	return compareExitCode(rep, budget, failOn), nil
+}
+
+// writeReportDir 落盘 report.json + report.md（`\n` 结尾，0644）。
+// 任何写盘失败都必须冒泡成 exit 1——静默丢弃报告会让 CI 门"绿得没有依据"。
+func writeReportDir(dir string, jsonBuf, mdBuf []byte) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("无法创建输出目录 %q：写盘失败", filepath.Base(dir))
+	}
+	files := []struct {
+		name string
+		data []byte
+	}{
+		{"report.json", jsonBuf},
+		{"report.md", mdBuf},
+	}
+	for _, f := range files {
+		p := filepath.Join(dir, f.name)
+		if err := os.WriteFile(p, f.data, 0o644); err != nil {
+			return fmt.Errorf("无法写入 %q：写盘失败", f.name)
+		}
+	}
+	return nil
+}
+
+// buildAttributeResult 是"装载 → facts → attribute"的唯一路径。
+// buildReport 与 M3 的 attribute golden 都走它——golden 因此不随 compare 的输出形态变化而失效。
+func buildAttributeResult(leftPath, rightPath, layerKind string) (*attribute.Result, []normalize.Entry, []normalize.Entry, artifact.Document, artifact.Document, error) {
+	leftDoc, err := artifact.LoadDocument(leftPath, layerKind, 0)
+	if err != nil {
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
+	}
+	rightDoc, err := artifact.LoadDocument(rightPath, layerKind, 0)
+	if err != nil {
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
 	leftSide, err := buildAttributeSide(leftDoc)
 	if err != nil {
-		return ExitUsage, err
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
 	rightSide, err := buildAttributeSide(rightDoc)
 	if err != nil {
-		return ExitUsage, err
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
 	res, err := attribute.Attribute(leftSide, rightSide)
 	if err != nil {
-		return ExitUsage, err
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
-	buf, err := report.MarshalValue(res)
+	leftEntries, err := attribute.Entries(leftSide)
 	if err != nil {
-		return ExitUsage, err
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
-	if _, err := stdout.Write(buf); err != nil {
-		return ExitUsage, err
+	rightEntries, err := attribute.Entries(rightSide)
+	if err != nil {
+		return nil, nil, nil, artifact.Document{}, artifact.Document{}, err
 	}
-	return compareExitCode(res, budget), nil
+	return res, leftEntries, rightEntries, leftDoc, rightDoc, nil
+}
+
+// buildReport 把装载 → facts → attribute → minimize → align 串成一份报告。
+// 两侧的 normalize.Entry 只构造一次，摘要闭包复用（HANDOFF-M5 §二.6）。
+func buildReport(leftPath, rightPath, layerKind string) (*report.Report, error) {
+	res, leftEntries, rightEntries, leftDoc, rightDoc, err := buildAttributeResult(leftPath, rightPath, layerKind)
+	if err != nil {
+		return nil, err
+	}
+	set, found, err := minimize.Search(
+		func(s []string) string { return normalize.TreeDigest(s, leftEntries) },
+		func(s []string) string { return normalize.TreeDigest(s, rightEntries) },
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	leftSHA, err := sideSHA256(leftPath, leftDoc)
+	if err != nil {
+		return nil, err
+	}
+	rightSHA, err := sideSHA256(rightPath, rightDoc)
+	if err != nil {
+		return nil, err
+	}
+
+	aligned, err := align.Align(leftDoc.Entries, rightDoc.Entries)
+	if err != nil {
+		return nil, err
+	}
+	renamed, added, removed := splitAlignEntries(aligned.Entries)
+
+	residuals := attribute.Residuals(leftEntries, rightEntries)
+	items := make([]report.ResidualItem, 0, len(residuals))
+	for _, d := range residuals {
+		items = append(items, report.ResidualItem{
+			Path: d.Path, RuleID: d.RuleID, BytesDifferent: d.BytesDelta,
+		})
+	}
+
+	return report.Build(report.Input{
+		Left:                 report.Side{Basename: filepath.Base(leftPath), SHA256: leftSHA},
+		Right:                report.Side{Basename: filepath.Base(rightPath), SHA256: rightSHA},
+		Counts:               res.Counts.Values,
+		Renamed:              renamed,
+		Added:                added,
+		Removed:              removed,
+		ResidueBytes:         res.ResidueBytes,
+		MinimalCauseSet:      set,
+		MinimalCauseSetFound: found,
+		ResidualItems:        items,
+		Notes:                res.Notes,
+	})
+}
+
+// splitAlignEntries 把对齐结果折成报告的三张清单（顺序固定：改名按 to、增删按 relpath）。
+func splitAlignEntries(entries []model.Entry) (renamed []report.RenamedItem, added, removed []string) {
+	renamed = []report.RenamedItem{}
+	added = []string{}
+	removed = []string{}
+	for _, e := range entries {
+		switch e.Status {
+		case model.StatusRenamed:
+			renamed = append(renamed, report.RenamedItem{From: e.RenamedFrom, To: e.RelPath})
+		case model.StatusAdded:
+			added = append(added, e.RelPath)
+		case model.StatusRemoved:
+			removed = append(removed, e.RelPath)
+		}
+	}
+	sort.Slice(renamed, func(i, j int) bool { return renamed[i].To < renamed[j].To })
+	sort.Strings(added)
+	sort.Strings(removed)
+	return renamed, added, removed
+}
+
+// sideSHA256 是报告里 `left.sha256` / `right.sha256` 的唯一算法（data/README.md §4.8）：
+//   - 文件输入：该文件字节的 sha256
+//   - 目录输入：条目表 `relpath ‖ 0x00 ‖ sha256 ‖ 0x0A`（relpath 升序）的 sha256
+//
+// 不读绝对路径、不读时钟，因此同内容同摘要。
+func sideSHA256(path string, doc artifact.Document) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("无法读取 %q：路径不存在或不可访问", filepath.Base(path))
+	}
+	if !info.IsDir() {
+		buf, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("无法读取 %q：读盘失败", filepath.Base(path))
+		}
+		sum := sha256.Sum256(buf)
+		return hex.EncodeToString(sum[:]), nil
+	}
+	entries := append([]artifact.Raw(nil), doc.Entries...)
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+	var b strings.Builder
+	for _, e := range entries {
+		sum := sha256.Sum256(e.Data)
+		b.WriteString(e.Path)
+		b.WriteByte(0x00)
+		b.WriteString(hex.EncodeToString(sum[:]))
+		b.WriteByte(0x0A)
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // buildAttributeSide 把一份已装载文档转成 attribute 的输入：
@@ -293,39 +469,7 @@ func factMap(fs []model.Fact) map[string]string {
 	return m
 }
 
-// compareExitCode 是 data/README.md §4.6 在 M3 的落点（minimize 在 M4 接入后不变）：
-//
-//	有残留 / T12        → 3
-//	无差异              → 0
-//	仅元数据差异        → 实际类别 ⊆ budget ? 0 : 2
-func compareExitCode(res *attribute.Result, budget []string) int {
-	if res.ResidueBytes > 0 || res.Counts.Values["T12"] > 0 {
-		return ExitResidue
-	}
-	if res.Counts.Values["total"] == 0 {
-		return ExitOK
-	}
-	if len(budget) > 0 && budgetCovers(res, budget) {
-		return ExitOK
-	}
-	return ExitMetaOnly
-}
-
-func budgetCovers(res *attribute.Result, budget []string) bool {
-	allowed := make(map[string]bool, len(budget))
-	for _, r := range budget {
-		allowed[r] = true
-	}
-	for rule, n := range res.Counts.Values {
-		if rule == "total" || n == 0 {
-			continue
-		}
-		if !allowed[rule] {
-			return false
-		}
-	}
-	return true
-}
+// compareExitCode / budgetCovers / parseFailOn 见 exitcode.go（退出码唯一实现）。
 
 // runSelftest 是**离线**自检：不读样张、不联网、不写盘。
 // 它验证的是"契约形状"而不是"分类正确"——后者由 golden 测试承担。

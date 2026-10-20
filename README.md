@@ -18,7 +18,7 @@
 | M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ✅ 完成（2026-10-20） |
 | M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ✅ 完成（2026-10-20） |
 | M4 | minimize 模块：最小原因集穷举搜索 | ✅ 完成（2026-10-20） |
-| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ⬜ 未开始 |
+| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ✅ 完成（2026-10-20） |
 | M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ⬜ 未开始 |
 
 ## 二、安装
@@ -29,40 +29,57 @@
 git clone https://github.com/yuluo554/10-20-build-diff-ledger.git
 cd 10-20-build-diff-ledger
 CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
-./bdiff version
-./bdiff selftest
+./bdiff version          # 期望 exit=0
+./bdiff selftest         # 期望 exit=0
 ```
 
 发布版另提供 `dist/bdiff-<os>-<arch>`（见 Release 附件），下载后直接运行，无需 Go。
 
 ## 三、三个最小场景
 
-> ⚠️ **当前是 M3**：`version` / `selftest` / `align` / `facts` 与 `compare` 的**归因 JSON + 退出码**已可用；
-> `compare --out`（`report.json`/`report.md`）、`--format=md|both`、最小原因集与 `--fail-on` 随 M4–M5 补齐。
-> 未落地的参数会**显式报错并 exit 1**，不会返回假结果。下面三条 `compare` 命令是**目标形态**。
+> 三条都用仓库内的合成样张，**可直接复制执行**（先按 §二 构建出 `./bdiff`）。
+> 每条命令下一行的 `# 期望 exit=N` 由 `TestReadmeCommandsParse` 机器断言——
+> 改退出码而不同步 README，测试会红。
 
-### 场景一：只差 mtime
+### 场景一：只差 mtime（仅元数据差异）
 
 ```bash
-# 两侧 tar 只差 mtime
-./bdiff compare --left old/pkg-0.1.0.tar.gz --right new/pkg-0.1.0.tar.gz --format both
-# 期望：counts.T1 > 0，minimal_cause_set = ["T1"]，residue_bytes = 0，退出码 2
+./bdiff compare \
+  --left  data/fixtures/c01-mtime/pair/left/synthpkg-0.1.0.tar \
+  --right data/fixtures/c01-mtime/pair/right/synthpkg-0.1.0.tar \
+  --format md
+# 期望 exit=2  → counts.T1 = 5，minimal_cause_set = ["T1"]，residue_bytes = 0
 ```
 
 ### 场景二：CI 门禁（放行时间戳与属主）
 
 ```bash
-./bdiff compare --left a.tar --right b.tar --budget T1,T2 --out report/
-# 归一化后一致 → 退出码 0；报告里仍逐条列出被放行的差异（放行 ≠ 消失）
+./bdiff compare \
+  --left  data/fixtures/c09-mtime-owner/pair/left/synthpkg-0.1.0.tar \
+  --right data/fixtures/c09-mtime-owner/pair/right/synthpkg-0.1.0.tar \
+  --budget T1,T2 --out report/
+# 期望 exit=0  → 归一化后一致且实际类别 {T1,T2} ⊆ 白名单
+# report/report.json 与 report/report.md 仍逐条列出被放行的差异（放行 ≠ 消失）
 ```
 
-`ci/example.yml` 是可直接粘进 GitHub Actions 的门禁示例。
+`ci/example.yml` 是可直接粘进 GitHub Actions 的门禁示例（同一套参数）。
 
 ### 场景三：真有内容差异
 
 ```bash
-./bdiff compare --left a.whl --right b.whl
-# 期望：counts.T12 > 0，minimal_cause_set = null，residue_bytes > 0，退出码 3
+./bdiff compare \
+  --left  data/fixtures/c11-real-change/pair/left/synthpkg-0.1.0.tar.gz \
+  --right data/fixtures/c11-real-change/pair/right/synthpkg-0.1.0.tar.gz
+# 期望 exit=3  → counts.T12 = 1，minimal_cause_set = null，residue_bytes = 1
+```
+
+### 补充：完全一致
+
+```bash
+./bdiff compare \
+  --left  data/fixtures/c01-mtime/pair/left/synthpkg-0.1.0.tar \
+  --right data/fixtures/c01-mtime/pair/left/synthpkg-0.1.0.tar
+# 期望 exit=0  → minimal_cause_set = []（与"无解"的 null 不是一回事）
 ```
 
 ## 四、退出码
@@ -76,19 +93,23 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 
 口径的唯一权威是 `data/README.md` §4.6。**`1` 是补定的**：否则"读不了"会被当成"一致"（静默通过的经典漏洞）。
 
-## 五、字段说明（归因输出）
+## 五、字段说明（报告输出）
 
-M3 的 `bdiff compare` 输出归因 JSON：`counts` → `diffs` → `residue_bytes` → `tree_digest` → `notes`。
-M5 起的 `report.json` 在其前面加 `schema_version`/`tool_version`/`left`/`right`，并补 `renamed`/`added`/`removed`/
-`minimal_cause_set`/`residual_items`；键序口径见 `data/README.md` §4.8。
+`bdiff compare` 输出 `report.json`（`--format=json`，默认）或 `report.md`（`--format=md`），
+`--format=both` 先 JSON 后 Markdown；`--out DIR` 同时落盘两份。键序口径见 `data/README.md` §4.8。
 
+- `left` / `right`：只有 `basename` 与 `sha256`——**不写绝对路径**。
 - `counts`：T1–T12 逐类计数 + `total`；分类法定义见 `data/README.md` §4.1。
-- `diffs`：逐差异点 `(path, key, rule_id, left, right, bytes_delta)`，按 `(path, key, rule_id)` 排序。
+- `renamed` / `added` / `removed`：来自结构对齐（改名**仅当两侧唯一剩余条目的 sha256 相等**）。
 - `residue_bytes`：归一化（S = T1–T11）后两侧条目字节流的**实际不同字节数**（§4.5）。
-- `tree_digest`：`left`/`right`（S = ∅）与 `normalized_all`（左侧 S = T1–T11）。
+- `minimal_cause_set`：使两侧归一化后**树摘要相等**的**基数最小**规则集合；
+  `[]` = 完全一致，`null` = 无解（此时 `residue_bytes > 0`）。
+- `residual_items`：残留条目 `{path, rule_id, bytes_different}`，按 `path` 升序；
+  其和恒等于 `residue_bytes`（同一实现，不另算）。
 - `notes`：口径性提示（如 §4.1 的 `rule_overlap`），不参与判定。
-- M5 的 `minimal_cause_set`：使两侧归一化后**树摘要相等**的**基数最小**规则集合；无解为 `null`（且 `residue_bytes > 0`）。
-- M5 的 `left` / `right`：只写 `basename` 与 `sha256`——**不写绝对路径**。
+
+需要逐差异点（`path`/`key`/`rule_id`/`left`/`right`/`bytes_delta`）时，看
+`data/golden/attribute/`（归因层 golden，由 `TestAttributeGolden` 逐字节钉住）。
 
 ## 六、已知边界（v0）
 

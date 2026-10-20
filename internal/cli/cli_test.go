@@ -2,6 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -106,22 +110,136 @@ func TestHelpIsZero(t *testing.T) {
 	}
 }
 
-// TestReadmeCommandsParse 是阶段 7 出口门①的本地形态：
-// 抽出 README 代码块里的 `bdiff ...` 命令，逐条确认 parser 接受（不因参数形态 exit 1）。
-// M5 前 README 里的命令是骨架可跑的版本；断言只在"参数面"上，不执行真实比较。
+// TestReadmeCommandsParse 是阶段 7 出口门①的本地形态（M5 落地为**真执行**）：
+//
+//  1. 抽出 `README.md` 里所有 fenced bash 块中的 `./bdiff ...` 命令（含 `\` 续行）；
+//  2. 每条命令都**真的跑一遍**（样张路径按仓库根解析，`--out` 改写到临时目录）；
+//  3. 退出码必须与紧随其后的 `# 期望 exit=N` 注释一致。
+//
+// 只断言"参数面能被接受"会让 README 与行为脱钩（文档写 exit 0、程序返回 2 也能绿）；
+// 这里断言的是**可执行 + 退出码**，所以改语义而不同步 README 会红。
 func TestReadmeCommandsParse(t *testing.T) {
-	cmds := [][]string{
-		{"version"},
-		{"selftest"},
-		{"align", "--left", "go.mod", "--right", "go.mod", "--format", "json"},
-		{"facts", "--artifact", "go.mod", "--format", "json"},
-		{"compare", "--left", "go.mod", "--right", "go.mod", "--format", "both"},
-		{"compare", "--left", "go.mod", "--right", "go.mod", "--budget", "T1,T2"},
-		{"compare", "--left", "go.mod", "--right", "go.mod", "--budget", "all"},
+	root := filepath.Join("..", "..")
+	raw, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("读 README 失败: %v", err)
 	}
-	for _, args := range cmds {
-		if _, _, errOut := run(args...); strings.Contains(errOut, "flag provided but not defined") {
+	cmds := extractReadmeCommands(t, string(raw))
+	if len(cmds) < 4 {
+		t.Fatalf("README 只抽出 %d 条 ./bdiff 命令（下界 4：安装 2 条 + 三场景）", len(cmds))
+	}
+	t.Logf("README 抽出 %d 条 ./bdiff 命令", len(cmds))
+	outDir := t.TempDir()
+	for _, c := range cmds {
+		args := localizeArgs(t, root, outDir, c.args)
+		code, _, errOut := run(args...)
+		if strings.Contains(errOut, "flag provided but not defined") {
 			t.Errorf("参数面被拒：bdiff %s\n%s", strings.Join(args, " "), errOut)
+			continue
+		}
+		if code != c.want {
+			t.Errorf("bdiff %s\n退出码 = %d，README 写的是 %d（stderr=%s）",
+				strings.Join(args, " "), code, c.want, errOut)
 		}
 	}
+}
+
+type readmeCmd struct {
+	args []string
+	want int
+}
+
+// extractReadmeCommands 解析 fenced bash 块：把 `\` 续行拼成一条，
+// 取 `./bdiff ` 开头的行，并按块内出现顺序与 `期望 exit=N` 配对。
+func extractReadmeCommands(t *testing.T, md string) []readmeCmd {
+	t.Helper()
+	var out []readmeCmd
+	for _, block := range fencedBashBlocks(md) {
+		var logical []string
+		var cur string
+		for _, line := range strings.Split(block, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasSuffix(trimmed, "\\") {
+				cur += strings.TrimSuffix(trimmed, "\\") + " "
+				continue
+			}
+			logical = append(logical, cur+trimmed)
+			cur = ""
+		}
+		if cur != "" {
+			logical = append(logical, cur)
+		}
+
+		var wants []int
+		for _, line := range logical {
+			if m := regexp.MustCompile(`期望 exit=(\d)`).FindStringSubmatch(line); m != nil {
+				n, _ := strconv.Atoi(m[1])
+				wants = append(wants, n)
+			}
+		}
+		var args [][]string
+		for _, line := range logical {
+			if !strings.HasPrefix(line, "./bdiff ") {
+				continue
+			}
+			fields := strings.Fields(strings.TrimPrefix(line, "./bdiff "))
+			args = append(args, fields)
+		}
+		if len(args) == 0 {
+			continue
+		}
+		if len(wants) != len(args) {
+			t.Fatalf("块内 %d 条 bdiff 命令但 %d 个『期望 exit=N』标注（必须 1:1）:\n%s", len(args), len(wants), block)
+		}
+		for i := range args {
+			out = append(out, readmeCmd{args: args[i], want: wants[i]})
+		}
+	}
+	return out
+}
+
+func fencedBashBlocks(md string) []string {
+	var blocks []string
+	lines := strings.Split(md, "\n")
+	in, isBash := false, false
+	var cur []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			if !in {
+				in = true
+				isBash = strings.HasPrefix(line, "```bash")
+				cur = nil
+				continue
+			}
+			if isBash {
+				blocks = append(blocks, strings.Join(cur, "\n"))
+			}
+			in, isBash = false, false
+			continue
+		}
+		if in {
+			cur = append(cur, line)
+		}
+	}
+	return blocks
+}
+
+// localizeArgs 把 README 里的仓库相对路径改成测试可用的路径：
+// `data/...` 前置仓库根；`--out` 的值改写到临时目录（不污染工作区）。
+func localizeArgs(t *testing.T, root, outDir string, args []string) []string {
+	t.Helper()
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--out":
+			out = append(out, a, outDir)
+			i++
+		case strings.HasPrefix(a, "data/"):
+			out = append(out, filepath.Join(root, a))
+		default:
+			out = append(out, a)
+		}
+	}
+	return out
 }

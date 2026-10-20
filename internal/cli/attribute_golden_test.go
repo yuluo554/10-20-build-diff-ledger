@@ -13,6 +13,7 @@ import (
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/artifact"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/attribute"
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/normalize"
+	"github.com/yuluo554/10-20-build-diff-ledger/internal/report"
 )
 
 // -update 重写 data/golden/attribute/*.json 与 data/golden/minimize/*.json
@@ -80,18 +81,21 @@ func loadExpect(t *testing.T, caseName string) expectFile {
 
 // TestFixtureMatrix 是 M3 DoD 的"14 组分类命中率 100%"断言（expect.json 驱动）：
 // 正例必须出现、出现过的类别必须在 allowed 内、residue 与退出码逐项对齐。
+//
+// M5 起 compare 的 stdout 是 report.json，归因中间结果改由**同一生产函数**
+// `buildAttributeResult` 取（它正是 buildReport 的前半段），断言面不变。
 func TestFixtureMatrix(t *testing.T) {
 	for _, name := range fixtureCases {
 		t.Run(name, func(t *testing.T) {
 			exp := loadExpect(t, name)
 			left, right := fixtureArtifacts(t, name)
-			code, out, errOut := run("compare", "--left", left, "--right", right)
+			code, _, errOut := run("compare", "--left", left, "--right", right)
 			if code != exp.Expect.ExitCode {
 				t.Fatalf("退出码 = %d，期望 %d（stderr=%s）", code, exp.Expect.ExitCode, errOut)
 			}
-			var res attribute.Result
-			if err := json.Unmarshal([]byte(out), &res); err != nil {
-				t.Fatalf("解析输出失败: %v\n%s", err, out)
+			res, _, _, _, _, err := buildAttributeResult(left, right, "")
+			if err != nil {
+				t.Fatalf("归因失败: %v", err)
 			}
 			if res.ResidueBytes != exp.Expect.ResidueBytes {
 				t.Fatalf("residue_bytes = %d，期望 %d", res.ResidueBytes, exp.Expect.ResidueBytes)
@@ -207,8 +211,11 @@ func TestEachRuleOpIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestAttributeGolden 是 data/golden/attribute/*.json 的逐字节断言，走真实 CLI 路径
-// （Run → artifact.LoadDocument → facts.Extract → attribute.Attribute → MarshalValue）。
+// TestAttributeGolden 是 data/golden/attribute/*.json 的逐字节断言，走真实生产路径
+// （artifact.LoadDocument → facts.Extract → attribute.Attribute → MarshalValue）。
+//
+// M5 起 `compare` 的 stdout 变成 report.json；归因 golden 因此改由 `buildAttributeResult`
+// 直接取中间结果（与 buildReport 同一函数，不是测试专用复刻），断言面不变。
 func TestAttributeGolden(t *testing.T) {
 	root := filepath.Join("..", "..")
 	goldenDir := filepath.Join(root, "data", "golden", "attribute")
@@ -220,13 +227,17 @@ func TestAttributeGolden(t *testing.T) {
 	for _, name := range fixtureCases {
 		t.Run(name, func(t *testing.T) {
 			left, right := fixtureArtifacts(t, name)
-			code, out, errOut := run("compare", "--left", left, "--right", right)
-			if code != 0 && code != 2 && code != 3 {
-				t.Fatalf("compare 退出码 %d（stderr=%s）", code, errOut)
+			res, _, _, _, _, err := buildAttributeResult(left, right, "")
+			if err != nil {
+				t.Fatalf("归因失败: %v", err)
+			}
+			buf, err := report.MarshalValue(res)
+			if err != nil {
+				t.Fatal(err)
 			}
 			gp := filepath.Join(goldenDir, name+".json")
 			if *update {
-				if err := os.WriteFile(gp, []byte(out), 0o644); err != nil {
+				if err := os.WriteFile(gp, buf, 0o644); err != nil {
 					t.Fatal(err)
 				}
 				return
@@ -235,12 +246,19 @@ func TestAttributeGolden(t *testing.T) {
 			if err != nil {
 				t.Fatalf("读 golden 失败（用 -update 生成）: %v", err)
 			}
-			if !bytes.Equal([]byte(out), want) {
-				t.Fatalf("与 golden 不一致\n got=%s\nwant=%s", out, want)
+			if !bytes.Equal(buf, want) {
+				t.Fatalf("与 golden 不一致\n got=%s\nwant=%s", buf, want)
 			}
 			// 双跑逐字节（确定性）。
-			_, out2, _ := run("compare", "--left", left, "--right", right)
-			if out2 != out {
+			res2, _, _, _, _, err := buildAttributeResult(left, right, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf2, err := report.MarshalValue(res2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(buf, buf2) {
 				t.Fatal("同输入双跑不一致")
 			}
 		})
@@ -248,6 +266,8 @@ func TestAttributeGolden(t *testing.T) {
 }
 
 // TestCompareUsageErrors 断言 compare 的用法错误一律 exit 1（不占用 2/3）。
+// M5 起 `--out` / `--format=md|both` 已落地，不再是用法错误——它们移出本表，
+// 由 TestReportOutDir / TestReportGolden 正向覆盖。
 func TestCompareUsageErrors(t *testing.T) {
 	left, right := fixtureArtifacts(t, "c01-mtime")
 	cases := [][]string{
@@ -255,7 +275,8 @@ func TestCompareUsageErrors(t *testing.T) {
 		{"compare", "--left", left},
 		{"compare", "--left", left, "--right", right, "--format", "xml"},
 		{"compare", "--left", left, "--right", right, "--budget", "T13"},
-		{"compare", "--left", left, "--right", right, "--out", "x"},
+		{"compare", "--left", left, "--right", right, "--fail-on", "never"},
+		{"compare", "--left", left, "--right", right, "--nope"},
 		{"compare", "--left", "no-such", "--right", right},
 	}
 	for _, args := range cases {

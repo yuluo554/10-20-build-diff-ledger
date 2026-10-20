@@ -79,6 +79,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         shell: bash
         run: bash tools/verify-go-guards.sh
+      - name: "ci/example.yml local equivalent (offline)"
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
+        shell: bash
+        run: bash tools/check-ci-example.sh
 
   determinism:
     name: "Determinism (double build byte-equal)"

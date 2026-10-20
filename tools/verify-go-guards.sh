@@ -177,10 +177,39 @@ b=$(apply internal/minimize/minimize.go \
 expect_red "G10 枚举基数降序" ./internal/cli TestMinimizeDoDCases
 restore internal/minimize/minimize.go "$b" "G10"
 
+# G11：把"无解"也写成非 nil 空切片 → `null` / `[]` 的区分被抹掉（§4.5）。
+# 这是 M5 新增判据（报告里 null ≠ []）的变异：证明 TestBuildDistinguishesNullAndEmpty 不在"恒绿"。
+b=$(apply internal/report/report.go \
+  $'\t\tr.MinimalCauseSet = nil // JSON null：无解' \
+  $'\t\tr.MinimalCauseSet = []string{} // 变异：无解也写成空数组' \
+  "G11 无解写成 []")
+expect_red "G11 无解写成 []" ./internal/report TestBuildDistinguishesNullAndEmpty
+restore internal/report/report.go "$b" "G11"
+
+# G12：budget 覆盖判定改成"遍历最小集"而不是"遍历实际类别" → 白名单语义被偷换
+# （最小集只说明"最少改哪几项就一致"，不是"出现过哪些类别"）。
+# 靶子必须选 TestBudgetCoversActualCategories：14 组真实样张的最小集都覆盖了全部
+# 实际类别，拿样张验这条变异会**恒绿**（本脚本首版实测如此——"断言没在测它声称在测的东西"）。
+b=$(apply internal/cli/exitcode.go \
+  $'\tfor rule, n := range r.Counts.Values {\n\t\tif rule == "total" || n == 0 {' \
+  $'\tfor _, rule := range r.MinimalCauseSet {\n\t\tif rule == "total" || rule == "" {' \
+  "G12 budget 看最小集")
+expect_red "G12 budget 看最小集" ./internal/cli TestBudgetCoversActualCategories
+restore internal/cli/exitcode.go "$b" "G12"
+
+# G13：把"残留优先"的判定顺序短路掉 → 有残留时可能落到 0/2。
+# 这是 M5 新增判据（§4.6 判定顺序）的变异：证明 TestExitCodeMatrix 不在"恒绿"。
+b=$(apply internal/cli/exitcode.go \
+  $'\tif r.ResidueBytes > 0 || r.Counts.Values["T12"] > 0 {\n\t\treturn ExitResidue\n\t}' \
+  $'\tif false {\n\t\treturn ExitResidue\n\t}' \
+  "G13 残留判定被短路")
+expect_red "G13 残留判定被短路" ./internal/cli TestExitCodeMatrix
+restore internal/cli/exitcode.go "$b" "G13"
+
 rm -rf "$tmp"
 
 if [ "$fail" -ne 0 ]; then
   echo "结论：$fail 条变异未如期变红"
   exit 1
 fi
-echo "结论：10/10 组 Go 守门变异如期变红，还原后源码字节一致"
+echo "结论：13/13 组 Go 守门变异如期变红，还原后源码字节一致"

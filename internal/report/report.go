@@ -98,6 +98,55 @@ func New(left, right Side) *Report {
 	}
 }
 
+// Input 是 Build 的入参：只用 model 与原生类型，**不 import attribute/align**（K4 依赖方向）。
+// 由 cli 把 attribute.Result / minimize.Search / align.Result 折算成这里。
+type Input struct {
+	Left, Right Side
+	// Counts 的键集合应为 model.RuleIDs + "total"；缺键按 0 处理。
+	Counts map[string]int
+	// Renamed 按 to 升序；Added/Removed 按 relpath 升序。
+	Renamed []RenamedItem
+	Added   []string
+	Removed []string
+
+	ResidueBytes int64
+	// MinimalCauseSetFound=false → 无解，序列化为 null（§4.5）。
+	// Found=true 且集合为空 → 完全一致，序列化为 []。
+	MinimalCauseSet      []string
+	MinimalCauseSetFound bool
+
+	ResidualItems []ResidualItem
+	Notes         []string
+}
+
+// Build 是 report.Report 的**唯一**构造入口（cli 不得逐字段赋值）：
+// 它负责三件容易写错的事——键集合补零、`null` 与 `[]` 的区分、切片永不为 nil。
+//
+// 返回 error 的情形只有一种：违反 §4.5 的"无解 ⇔ residue_bytes > 0"。
+// 那是构造方的口径错误（不是用户输入问题），宁可显式报错也不产出自相矛盾的报告。
+func Build(in Input) (*Report, error) {
+	if !in.MinimalCauseSetFound && in.ResidueBytes <= 0 {
+		return nil, fmt.Errorf("报告口径冲突：minimal_cause_set 无解但 residue_bytes = %d（§4.5 要求 > 0）", in.ResidueBytes)
+	}
+	r := New(in.Left, in.Right)
+	for _, rule := range model.RuleIDs {
+		r.Counts.Values[rule] = in.Counts[rule]
+	}
+	r.Counts.Values["total"] = in.Counts["total"]
+	r.Renamed = append(r.Renamed, in.Renamed...)
+	r.Added = append(r.Added, in.Added...)
+	r.Removed = append(r.Removed, in.Removed...)
+	r.ResidueBytes = in.ResidueBytes
+	if in.MinimalCauseSetFound {
+		r.MinimalCauseSet = append([]string{}, in.MinimalCauseSet...)
+	} else {
+		r.MinimalCauseSet = nil // JSON null：无解
+	}
+	r.ResidualItems = append(r.ResidualItems, in.ResidualItems...)
+	r.Notes = append(r.Notes, in.Notes...)
+	return r, nil
+}
+
 func zeroCounts() map[string]int {
 	m := make(map[string]int, len(model.RuleIDs)+1)
 	for _, r := range model.RuleIDs {
@@ -126,31 +175,83 @@ func MarshalValue(v any) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// RenderMarkdown 渲染人读视图。M5 落地；此处给出**确定性骨架**（无时间性文案）。
-// 纪律：不含运行时刻、不含绝对路径、不含主机名；双跑逐字节一致。
+// RenderMarkdown 渲染人读视图（plan/03 §六 的固定模板）：
+// 标题 / 输入摘要 / 逐类计数表 / 改名·新增·删除清单 / 残留条目 / 最小原因集 / 结论行。
+//
+// 纪律：不含运行时刻、不含绝对路径、不含主机名；双跑逐字节一致；换行只用 `\n`。
 func RenderMarkdown(r *Report) []byte {
 	var b strings.Builder
 	b.WriteString("# bdiff 差异归因账本\n\n")
 	b.WriteString("## 输入\n\n")
-	fmt.Fprintf(&b, "| 侧 | basename | sha256 |\n|---|---|---|\n")
+	b.WriteString("| 侧 | basename | sha256 |\n|---|---|---|\n")
 	fmt.Fprintf(&b, "| left | `%s` | `%s` |\n", r.Left.Basename, r.Left.SHA256)
 	fmt.Fprintf(&b, "| right | `%s` | `%s` |\n", r.Right.Basename, r.Right.SHA256)
-	b.WriteString("\n## 分类计数\n\n| rule | 计数 |\n|---|---|\n")
+
+	b.WriteString("\n## 分类计数\n\n| rule | 名称 | 计数 |\n|---|---|---|\n")
 	for _, rule := range model.RuleIDs {
-		fmt.Fprintf(&b, "| %s | %d |\n", rule, r.Counts.Values[rule])
+		fmt.Fprintf(&b, "| %s | %s | %d |\n", rule, RuleLabel(rule), r.Counts.Values[rule])
 	}
-	fmt.Fprintf(&b, "| **total** | **%d** |\n", r.Counts.Values["total"])
-	b.WriteString("\n## 残留与最小原因集\n\n")
-	fmt.Fprintf(&b, "- `residue_bytes`: %d\n", r.ResidueBytes)
-	if len(r.MinimalCauseSet) == 0 {
-		b.WriteString("- `minimal_cause_set`: `null`（无解）或 `[]`（完全一致），见 report.json\n")
+	fmt.Fprintf(&b, "| **total** | — | **%d** |\n", r.Counts.Values["total"])
+
+	b.WriteString("\n## 改名 / 新增 / 删除\n\n")
+	b.WriteString("### 改名\n\n")
+	if len(r.Renamed) == 0 {
+		b.WriteString("（无）\n")
 	} else {
-		b.WriteString("- `minimal_cause_set`: " + strings.Join(r.MinimalCauseSet, ", ") + "\n")
+		b.WriteString("| from | to |\n|---|---|\n")
+		for _, it := range r.Renamed {
+			fmt.Fprintf(&b, "| `%s` | `%s` |\n", it.From, it.To)
+		}
 	}
+	b.WriteString("\n### 新增\n\n")
+	writePathList(&b, r.Added)
+	b.WriteString("\n### 删除\n\n")
+	writePathList(&b, r.Removed)
+
+	b.WriteString("\n## 残留\n\n")
+	fmt.Fprintf(&b, "- `residue_bytes`: %d\n", r.ResidueBytes)
+	if len(r.ResidualItems) == 0 {
+		b.WriteString("- 残留条目：（无）\n")
+	} else {
+		b.WriteString("\n| path | rule | 不同字节 |\n|---|---|---|\n")
+		for _, it := range r.ResidualItems {
+			fmt.Fprintf(&b, "| `%s` | %s | %d |\n", it.Path, it.RuleID, it.BytesDifferent)
+		}
+	}
+
+	b.WriteString("\n## 最小原因集\n\n")
+	if r.MinimalCauseSet == nil {
+		b.WriteString("- `minimal_cause_set`: `null`（无解：T1–T11 全施加后两侧仍不同）\n")
+	} else if len(r.MinimalCauseSet) == 0 {
+		b.WriteString("- `minimal_cause_set`: `[]`（两侧完全一致，无需归一化）\n")
+	} else {
+		parts := make([]string, 0, len(r.MinimalCauseSet))
+		for _, rule := range r.MinimalCauseSet {
+			parts = append(parts, fmt.Sprintf("`%s`（%s）", rule, RuleLabel(rule)))
+		}
+		b.WriteString("- `minimal_cause_set`: " + strings.Join(parts, "、") + "\n")
+	}
+
+	if len(r.Notes) > 0 {
+		b.WriteString("\n## 口径提示\n\n")
+		for _, n := range r.Notes {
+			fmt.Fprintf(&b, "- %s\n", n)
+		}
+	}
+
 	b.WriteString("\n## 判定\n\n")
 	b.WriteString(verdictLine(r))
-	b.WriteString("\n")
 	return []byte(b.String())
+}
+
+func writePathList(b *strings.Builder, paths []string) {
+	if len(paths) == 0 {
+		b.WriteString("（无）\n")
+		return
+	}
+	for _, p := range paths {
+		fmt.Fprintf(b, "- `%s`\n", p)
+	}
 }
 
 func verdictLine(r *Report) string {

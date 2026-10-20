@@ -446,8 +446,12 @@ func allOps() []string {
 	return out
 }
 
-// residueBytes = 归一化（S = T1–T11）后两侧 entry_stream 的实际不同字节数之和。
-func residueBytes(left, right []normalize.Entry) int64 {
+// Residuals 返回归一化（S = T1–T11）后**仍不同**的条目，按 path 升序。
+//
+// 它是 residue_bytes 的逐条目形态（报告 `residual_items` 的数据源），两者共用同一实现：
+// `residue_bytes == sum(d.BytesDelta)`。`rule_id` 恒为 T12——残留按定义就是
+// 未被 T1–T11 解释的部分（data/README.md §4.1/§4.5）。
+func Residuals(left, right []normalize.Entry) []model.Diff {
 	ops := allOps()
 	l := normalize.Apply(ops, left)
 	r := normalize.Apply(ops, right)
@@ -461,18 +465,42 @@ func residueBytes(left, right []normalize.Entry) int64 {
 		rm[e.Path] = e
 	}
 
-	var total int64
+	out := []model.Diff{}
 	for _, p := range unionKeys(lm, rm) {
 		le, lok := lm[p]
 		re, rok := rm[p]
+		var n int64
+		var leftHex, rightHex string
 		switch {
 		case lok && rok:
-			total += int64(countDiff(normalize.EntryStream(le), normalize.EntryStream(re)))
+			ls, rs := normalize.EntryStream(le), normalize.EntryStream(re)
+			n = countDiff(ls, rs)
+			leftHex, rightHex = digestHex(ls), digestHex(rs)
 		case lok:
-			total += int64(len(normalize.EntryStream(le)))
+			ls := normalize.EntryStream(le)
+			n = int64(len(ls))
+			leftHex = digestHex(ls)
 		default:
-			total += int64(len(normalize.EntryStream(re)))
+			rs := normalize.EntryStream(re)
+			n = int64(len(rs))
+			rightHex = digestHex(rs)
 		}
+		if n == 0 {
+			continue
+		}
+		out = append(out, model.Diff{
+			Path: p, Key: "content", RuleID: "T12",
+			Left: leftHex, Right: rightHex, BytesDelta: n,
+		})
+	}
+	return out
+}
+
+// residueBytes = 归一化（S = T1–T11）后两侧 entry_stream 的实际不同字节数之和。
+func residueBytes(left, right []normalize.Entry) int64 {
+	var total int64
+	for _, d := range Residuals(left, right) {
+		total += d.BytesDelta
 	}
 	return total
 }

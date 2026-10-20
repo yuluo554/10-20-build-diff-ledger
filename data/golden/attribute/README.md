@@ -1,28 +1,22 @@
 # attribute golden
 
-> `c01-mtime.json` … `c14-pax-unknown.json` 是 `bdiff compare`（M3 阶段：归因 JSON）的
-> **逐字节**期望输出，覆盖 14 组样张。口径唯一权威：`data/README.md` §4.1/§4.2/§4.5/§4.6。
+> `c01-mtime.json` … `c14-pax-unknown.json` 是**归因层**的**逐字节**期望输出，覆盖 14 组样张。
+> 口径唯一权威：`data/README.md` §4.1/§4.2/§4.5/§4.6。
 > 每个文件钉住四件事：`counts`（逐类计数）、`diffs`（逐差异点）、`residue_bytes`、
 > `tree_digest`（left / right / normalized_all）。
+>
+> **M5 起 `bdiff compare` 的 stdout 是 `report.json`**（报告形态见 `data/golden/report/`）；
+> 本目录钉的是它**前半段**的中间结果，由 `TestAttributeGolden` 直调 `buildAttributeResult` 取
+> （与 `buildReport` 同一函数，不是测试专用复刻）。
 
 ## 生成命令
 
 ```bash
-# 全量（14 组；每个 pair 目录里只有一个产物文件）
-for c in data/fixtures/c*/; do
-  name=$(basename "$c")
-  left=$(ls "$c/pair/left"/*)
-  right=$(ls "$c/pair/right"/*)
-  go run ./cmd/bdiff compare --left "$left" --right "$right" \
-    > "data/golden/attribute/$name.json"
-done
-```
-
-等价的测试内生成方式（`-update` 只写 golden，不改变断言）：
-
-```bash
 go test ./internal/cli -run TestAttributeGolden -update
 ```
+
+> ⚠️ M5 起 `compare` 已不再输出归因 JSON，**不能用 `go run ./cmd/bdiff compare > golden` 生成**。
+> `-update` 只写 golden、不改变断言。
 
 ## 逐字节校验
 

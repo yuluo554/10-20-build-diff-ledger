@@ -25,14 +25,15 @@
 | `AGENTS.md` | 方法论锚点（门命令 + 强制布局 + 三条硬约束 + 环境事实） | ✅ v1（2026-10-20，M0） |
 | `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ v1（2026-10-20，M0） |
 | `tools/verify-layout-mutations.mjs` | 布局门变异验证（11 组，全红） | ✅ v1（2026-10-20，M0） |
-| `tools/verify-go-guards.sh` | Go 守门变异验证（8 组，全红） | ✅ v1+M1（2026-10-20） |
+| `tools/verify-go-guards.sh` | Go 守门变异验证（13 组，全红） | ✅ v1+M5（2026-10-20） |
+| `tools/check-ci-example.sh` | `ci/example.yml` 的本地等价校验（0/1/2/3 四分支 + 放行≠消失） | ✅ M5（2026-10-20） |
 | `data/README.md` | 依据查证（三态 + URL + 基准日）/ 数据源可获取性 / 合成数据纪律 / 数值口径（T1–T12、归一化 op、树摘要、退出码、`\|S\|≤12`） | ✅ v1（2026-10-20，阶段 4） |
 | `.gitignore` | Go 标准模板 + 生成物输出目录 + 发布产物目录 | ✅ v1 |
 | `go.mod` / `cmd/bdiff/` / `internal/` | 可运行骨架（version / selftest 可用，五模块待 M1–M5） | ✅ v1（2026-10-20，M0） |
 | `tools/gen_fixtures/` | 样张生成器（14 组样张 + align golden 输入 + 反例；手写 tar/gzip/zip/ELF/PAX 扩展头） | ✅ v1+M2（2026-10-20） |
 | `.github/workflows/ci.yml` / `ci/example.yml` | CI 矩阵 + 门禁示例 | ✅ v1（2026-10-20，M0） |
 | `README.md` | 安装 / 三场景 / 字段说明 / 已知边界 / 状态表 | ✅ v1（2026-10-20，M0） |
-| `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出） | 🟡 `align/` ✅ M1、`facts/` ✅ M2，其余待 M3–M5 |
+| `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出） | ✅ 五组齐（`report/` 为 14 × 2 份 json+md） |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前落盘；发布后事实分栏追加） | ⬜ 待 M6 |
 
 ## 二、决策记录表
@@ -74,13 +75,13 @@
 | 仅同哈希判改名 | 自定纪律（写进 `data/README.md` §四.4） | ✅ | 同树 +1 改名样张：恰 1 条 `RENAMED`；同哈希多处 → 0 条 | ✅ M1 |
 | 事实抽取（tar/zip/gzip/ELF/PE/Mach-O） | 标准库 `debug/elf` + `debug/dwarf`；PE/Mach-O 手工读头 | ✅ | `internal/facts` 每 key 一个表驱动单测（`TestEveryKeyHasTest`） | ✅ M2 |
 | 未知字段落 `raw_header_sha256` | 自定纪律（`data/README.md` §四.3） | ✅ | `c14-pax-unknown` + `TestRawHeaderUnknownPAXIsHandRecomputed` | ✅ M2 |
-| 闭合分类法 T1–T12 | 实证：HN 39967003 常见差异类别；`data/README.md` §四.1 一处定义 | ✅ | 14 组样张分类命中率 100% | ⬜ 待 M3 实现 |
-| 归一化 op 幂等 | 自定纪律（纯函数） | ✅ | 逐 op `normalize(normalize(x))==normalize(x)` 断言 | ⬜ 待 M3 实现 |
-| 残留字节可复算 | 实际字节比对 | ✅ | golden 记录手工 `cmp` 计数 + 复现命令 | ⬜ 待 M3 实现 |
-| 最小原因集（非超集） | 自定搜索算法（`data/README.md` §四.5） | ✅ | `[T1]` / `[T1,T2]` 且 `len==2` / `null` 三组断言 | ⬜ 待 M4 实现 |
-| 确定性报告（固定键序） | 自定 schema | ✅ | 双跑逐字节 + `data/golden/report/` golden | ⬜ 待 M5 实现 |
-| 退出码门禁 + `--budget` 白名单 | 自定契约（`data/README.md` §四.6） | ✅ | 退出码矩阵 4 行（0/1/2/3）全覆盖 | ⬜ 待 M5 实现 |
-| CI 可接入 | `ci/example.yml` 示例 | ✅ 纯本地、零网络 | 本地按示例跑通一遍 | ⬜ 待 M5 实现 |
+| 闭合分类法 T1–T12 | 实证：HN 39967003 常见差异类别；`data/README.md` §四.1 一处定义 | ✅ | 14 组样张分类命中率 100% | ✅ M3 |
+| 归一化 op 幂等 | 自定纪律（纯函数） | ✅ | 逐 op `normalize(normalize(x))==normalize(x)` 断言 | ✅ M3 |
+| 残留字节可复算 | 实际字节比对 | ✅ | golden 记录手工 `cmp` 计数 + 复现命令 | ✅ M3 |
+| 最小原因集（非超集） | 自定搜索算法（`data/README.md` §四.5） | ✅ | `[T1]` / `[T1,T2]` 且 `len==2` / `null` 三组断言 | ✅ M4 |
+| 确定性报告（固定键序） | 自定 schema | ✅ | 双跑逐字节 + `data/golden/report/`（14 × 2 份） | ✅ M5 |
+| 退出码门禁 + `--budget` 白名单 | 自定契约（`data/README.md` §四.6） | ✅ | 退出码矩阵 4 行（0/1/2/3）全覆盖（`TestExitCodeMatrix`） | ✅ M5 |
+| CI 可接入 | `ci/example.yml` 示例 | ✅ 纯本地、零网络 | 本地按示例跑通一遍（`tools/check-ci-example.sh`） | ✅ M5 |
 | 单二进制零运行时依赖 | Go 标准库 | ✅ | 干净机器（无 Go 工具链）直接运行 | ⬜ 待 M6 验证 |
 | 零网络 | 无网络调用 | ✅ 静态可证 | 依赖面审计（标准库白名单）+ 运行期无出网 | ⬜ 待 M6 验证 |
 | 开源空白论据 | `gh api` 检索快照 2026-10-19T17:50Z–18:10Z | — | 检索式与 total_count 记录在 `plan/01` §1.4、`data/README.md` §一.2 | ✅ 已记录（⬜ 软论据口径） |
@@ -121,7 +122,7 @@
 | **M2 解析（facts）** | tar/zip/gzip 头 + ELF/PE/Mach-O 事实抽取；`raw_header_sha256` 兜底 | ✅ 完成（2026-10-20） |
 | **M3 归因（attribute）** | T1–T12 分类 + 幂等归一化 op + 树摘要 + 残留字节 | ✅ 完成（2026-10-20） |
 | **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | ✅ 完成（2026-10-20） |
-| **M5 报告与门禁（report）** | `report.json` + `report.md` 固定键序；退出码 0/1/2/3；`--budget` 白名单；`ci/example.yml` | ⬜ 未开始 |
+| **M5 报告与门禁（report）** | `report.json` + `report.md` 固定键序；退出码 0/1/2/3；`--budget` 白名单；`ci/example.yml` | ✅ 完成（2026-10-20） |
 | **M6 发布** | 干净环境验证 + 发布 | ⬜ 未开始 |
 
 **M6 DoD**：**git tag + GitHub Release 附产物（≥1 个手工上传附件，本地留副本 + sha256）+ 发布留档 `plan/RELEASE-M6.md`** 三件套齐；单二进制在无 Go 工具链的机器直接运行；发布 GitHub **公开仓库**。
