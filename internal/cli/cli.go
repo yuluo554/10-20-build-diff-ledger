@@ -115,11 +115,13 @@ func requirePaths(left, right string) error {
 
 func runAlign(args []string, stdout io.Writer) (int, error) {
 	var left, right, format, layerKind string
+	var maxEntryBytes int64
 	fs := newFlagSet("align", os.Stderr)
 	fs.StringVar(&left, "left", "", "左侧产物路径")
 	fs.StringVar(&right, "right", "", "右侧产物路径")
 	fs.StringVar(&format, "format", "json", "输出格式：json|md")
 	fs.StringVar(&layerKind, "layer-kind", "", "容器提示：oci")
+	fs.Int64Var(&maxEntryBytes, "max-entry-bytes", artifact.DefaultMaxEntryBytes, "单条目上限（字节）")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage, nil // flag 已把错误写进 stderr
 	}
@@ -129,13 +131,35 @@ func runAlign(args []string, stdout io.Writer) (int, error) {
 	if err := requirePaths(left, right); err != nil {
 		return ExitUsage, err
 	}
-	_ = artifact.KindTar
-	res, err := align.Align(nil, nil)
+
+	leftRaws, leftKind, err := artifact.Load(left, layerKind, maxEntryBytes)
 	if err != nil {
-		return ExitUsage, fmt.Errorf("%v（本命令在 M1 落地）", err)
+		return ExitUsage, err
 	}
-	_ = res
-	_ = stdout
+	rightRaws, rightKind, err := artifact.Load(right, layerKind, maxEntryBytes)
+	if err != nil {
+		return ExitUsage, err
+	}
+	res, err := align.Align(leftRaws, rightRaws)
+	if err != nil {
+		return ExitUsage, err
+	}
+	res.Left.Kind = string(leftKind)
+	res.Right.Kind = string(rightKind)
+
+	if format == "md" {
+		if _, err := stdout.Write(align.RenderMarkdown(res)); err != nil {
+			return ExitUsage, err
+		}
+		return ExitOK, nil
+	}
+	out, err := report.MarshalValue(res)
+	if err != nil {
+		return ExitUsage, err
+	}
+	if _, err := stdout.Write(out); err != nil {
+		return ExitUsage, err
+	}
 	return ExitOK, nil
 }
 

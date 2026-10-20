@@ -121,7 +121,9 @@ expect_red "G3 Ops 混入 T12" ./internal/normalize TestOpsTableCoversT1ToT11
 restore internal/normalize/normalize.go "$b" "G3"
 
 # G4：报告 struct 字段换序 → 键序断言必须红
-b=$(apply internal/report/report.go $'\tSchemaVersion    int              `json:"schema_version"`\n\tToolVersion      string           `json:"tool_version"`' $'\tToolVersion      string           `json:"tool_version"`\n\tSchemaVersion    int              `json:"schema_version"`' "G4 schema_version 与 tool_version 换序")
+# marker 用**当前源码的真实空白**（gofmt 之后对齐列宽会变；写死成旧版空白 =
+# marker 不存在，变异根本没发生——这条脚本自己踩过一次）。
+b=$(apply internal/report/report.go $'\tSchemaVersion   int            `json:"schema_version"`\n\tToolVersion     string         `json:"tool_version"`' $'\tToolVersion     string         `json:"tool_version"`\n\tSchemaVersion   int            `json:"schema_version"`' "G4 schema_version 与 tool_version 换序")
 expect_red "G4 report 键序互换" ./internal/report TestReportKeyOrder
 restore internal/report/report.go "$b" "G4"
 
@@ -137,10 +139,29 @@ b=$(apply internal/report/report.go $'\t\tif !isRuleID(p) {' $'\t\tif false && !
 expect_red "G6 budget 放过未知规则" ./internal/report TestParseBudgetThreeForms
 restore internal/report/report.go "$b" "G6"
 
+# G7：改名判定去掉"左侧每哈希唯一"约束 → K10 断言必须红
+# 变异方式要选**仍能编译**的那种：直接删掉整行会让 rightHash 变成未使用变量，
+# 那属于"测试没跑起来"，不算如期变红（本脚本的判据正是防这个）。
+b=$(apply internal/align/align.go \
+  $'\t\tif rightHash[re.SHA256] != 1 || leftHash[re.SHA256] != 1 {' \
+  $'\t\tif rightHash[re.SHA256] != 1 || leftHash[re.SHA256] != 999 {' \
+  "G7 改名不看左侧哈希唯一")
+expect_red "G7 改名不看哈希唯一" ./internal/align TestRenameOnlyOnEqualHash
+restore internal/align/align.go "$b" "G7"
+
+# G8：全量清单的写盘条件去掉 only 守卫 → K11 断言必须红
+# 变异后 --only 也会写 manifest.json（部分运行污染全集清单）。
+b=$(apply tools/gen_fixtures/main.go \
+  $'\tif only == "" {\n\t\t// align golden 的输入对' \
+  $'\tif true {\n\t\t// align golden 的输入对' \
+  "G8 --only 写全集清单")
+expect_red "G8 --only 写全集清单" ./tools/gen_fixtures TestOnlyWritesNoManifest
+restore tools/gen_fixtures/main.go "$b" "G8"
+
 rm -rf "$tmp"
 
 if [ "$fail" -ne 0 ]; then
   echo "结论：$fail 条变异未如期变红"
   exit 1
 fi
-echo "结论：6/6 组 Go 守门变异如期变红，还原后源码字节一致"
+echo "结论：8/8 组 Go 守门变异如期变红，还原后源码字节一致"

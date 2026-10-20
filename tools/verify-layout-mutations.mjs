@@ -73,13 +73,15 @@ const MUTATIONS = [
   },
   {
     id: "V4",
-    label: "plan/05 把 M1 翻成 ✅（其它副本仍 ⬜）",
+    label: "plan/05 把 M2 翻成 ✅（其它副本仍 ⬜）",
     expect: "LAYOUT.STATUS",
+    // 靶子必须挑**未完成**的里程碑：M1 收尾后那一行已是 ✅，
+    // 再拿它当靶子只会报"marker 不存在"，变异根本没发生。
     apply: () =>
       mutate(
         "plan/05-里程碑与验收.md",
-        "| M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ⬜ 未开始 |",
-        "| M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ✅ 完成 |",
+        "| M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ⬜ 未开始 |",
+        "| M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ✅ 完成 |",
         "V4",
       ),
   },
@@ -114,8 +116,8 @@ const MUTATIONS = [
     apply: () =>
       mutate(
         "internal/artifact/artifact.go",
-        'import "errors"',
-        'import (\n\t"errors"\n\t_ "net/http"\n)',
+        'import (\n\t"archive/tar"',
+        'import (\n\t_ "net/http"\n\t"archive/tar"',
         "V7",
       ),
   },
@@ -153,8 +155,8 @@ const MUTATIONS = [
     apply: () =>
       mutate(
         "plan/05-里程碑与验收.md",
-        "- [ ] HANDOFF-M2",
-        "- [ ] 先跑 `tools/definitely-missing.go`\n- [ ] HANDOFF-M2",
+        "- [ ] HANDOFF-M3",
+        "- [ ] 先跑 `tools/definitely-missing.go`\n- [ ] HANDOFF-M3",
         "V10",
       ),
   },

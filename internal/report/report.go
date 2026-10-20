@@ -110,10 +110,17 @@ func zeroCounts() map[string]int {
 // MarshalCanonical 是 report.json 的唯一序列化入口：
 // 不缩进、不转义 HTML、`\n` 结尾、字段顺序由 struct 定义。
 func MarshalCanonical(r *Report) ([]byte, error) {
+	return MarshalValue(r)
+}
+
+// MarshalValue 是**一切 JSON 输出**的唯一编码器（plan/02 §二 规则 3）：
+// bdiff align 的条目表也走这里，禁止子命令自行 json.Marshal。
+// 口径：不缩进、不转义 HTML、单个 `\n` 结尾、键序 = struct 字段序。
+func MarshalValue(v any) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(r); err != nil { // Encode 自带结尾换行
+	if err := enc.Encode(v); err != nil { // Encode 自带结尾换行
 		return nil, err
 	}
 	return b.Bytes(), nil

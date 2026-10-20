@@ -55,6 +55,9 @@ jobs:
         run: go vet ./...
       - name: "go test"
         run: go test ./...
+      - name: "fixtures rebuild check (byte-identical)"
+        shell: bash
+        run: go run ./tools/gen_fixtures --out data/fixtures --check
       - name: "build (trimpath, CGO off)"
         shell: bash
         run: |

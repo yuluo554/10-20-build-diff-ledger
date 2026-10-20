@@ -1,0 +1,352 @@
+{
+  "schema_version": 1,
+  "generator": "tools/gen_fixtures",
+  "cases": [
+    {
+      "name": "c01-mtime",
+      "files": [
+        {
+          "path": "c01-mtime/README.md",
+          "size": 695,
+          "sha256": "ea8cf4120f72577f8370e9a700586f7905f6910123fc590bf7825a8d45def6ed"
+        },
+        {
+          "path": "c01-mtime/expect.json",
+          "size": 1453,
+          "sha256": "d0564816bcaf4a078664ebac19e42c196a5911bf7c2ae97b43f0c93613e513ce"
+        },
+        {
+          "path": "c01-mtime/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
+        },
+        {
+          "path": "c01-mtime/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "cf09cfd42f076be4b67ce9453eb86c57a8a3da40082fb945d889bbb4bb5d0a6f"
+        }
+      ]
+    },
+    {
+      "name": "c02-owner",
+      "files": [
+        {
+          "path": "c02-owner/README.md",
+          "size": 709,
+          "sha256": "4545ca6772e94e55ebe37bcd3e2aaf8e9b0671de66c6154c99528fd6528bd3a9"
+        },
+        {
+          "path": "c02-owner/expect.json",
+          "size": 1455,
+          "sha256": "dbfdcb4ba2d71ef031b40987868029b7d34cbe919e0c11dd80506a86f75e16e0"
+        },
+        {
+          "path": "c02-owner/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
+        },
+        {
+          "path": "c02-owner/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "882227728b00e356f885caefd94a4375fd3ba2a726f3899938f7efab50b3671b"
+        }
+      ]
+    },
+    {
+      "name": "c03-mode",
+      "files": [
+        {
+          "path": "c03-mode/README.md",
+          "size": 715,
+          "sha256": "c1627fa6f8bac3f804bd08d2471cf278b20c57f82a5b39262df8008ed58db1da"
+        },
+        {
+          "path": "c03-mode/expect.json",
+          "size": 1475,
+          "sha256": "b63329d4b694ef031fd5981eb5f53aa57e5c6695b85fd85d7d2621fc8d1fbe60"
+        },
+        {
+          "path": "c03-mode/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
+        },
+        {
+          "path": "c03-mode/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "295a964881ac452c2686ed6acaa2f345ad547c4edd00d6dc18df295c5eaadb8e"
+        }
+      ]
+    },
+    {
+      "name": "c04-prefix",
+      "files": [
+        {
+          "path": "c04-prefix/README.md",
+          "size": 728,
+          "sha256": "6576c5fe619d9545c7a614f842ab5e4d596b0a395fda9ab4f3fb1471ab60afb0"
+        },
+        {
+          "path": "c04-prefix/expect.json",
+          "size": 1490,
+          "sha256": "3344850eac1e70abb52a0042a037c4314abbaa0502c9fb84ac1aa5f14ff42fda"
+        },
+        {
+          "path": "c04-prefix/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "f16f0a5a84bb2c525bd0390befbe4242cf3ee186ab4fbe6fe0b6ff98d5a9ba23"
+        },
+        {
+          "path": "c04-prefix/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "41c8514223f14569c3676acc6ce0e2907d2e25d60b33e560e68b8f0574bd454d"
+        }
+      ]
+    },
+    {
+      "name": "c05-order",
+      "files": [
+        {
+          "path": "c05-order/README.md",
+          "size": 727,
+          "sha256": "03af41d12f3a936afd8a2ad238d095a8f8eb3e9a3db7f1168646615179e21985"
+        },
+        {
+          "path": "c05-order/expect.json",
+          "size": 1474,
+          "sha256": "fcdf6ec0aa084a9a90ed84e949a9101dcf70baa0976d479ab6a7bd2db8a2d500"
+        },
+        {
+          "path": "c05-order/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
+        },
+        {
+          "path": "c05-order/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "0c313ee1c2d7900a5dcf8bb264e27f0e2aa7db91d0581a652c7dc8b4518ddd7c"
+        }
+      ]
+    },
+    {
+      "name": "c06-gzip-opts",
+      "files": [
+        {
+          "path": "c06-gzip-opts/README.md",
+          "size": 751,
+          "sha256": "58446017baf6d3f5909c9c25c548a67f0c4e0a22a2535fbf56b66060c29a53a2"
+        },
+        {
+          "path": "c06-gzip-opts/expect.json",
+          "size": 1472,
+          "sha256": "cdf48ec9c173c5ce9a7b93ec3305be9bbb3882012fcc192f3282726f5ffa7a9d"
+        },
+        {
+          "path": "c06-gzip-opts/pair/left/synthpkg-0.1.0.tar.gz",
+          "size": 577,
+          "sha256": "13a3d5834f93f0e20654bdbf74e5621fb1f2543be7b58d91d143e64bf32dcb22"
+        },
+        {
+          "path": "c06-gzip-opts/pair/right/synthpkg-0.1.0.tar.gz",
+          "size": 577,
+          "sha256": "7280abdcdfd8c13162f456c8f9d9f742f0da63571b95c807b0eecb27796f6559"
+        }
+      ]
+    },
+    {
+      "name": "c07-archive-hdr",
+      "files": [
+        {
+          "path": "c07-archive-hdr/README.md",
+          "size": 767,
+          "sha256": "e44ac8b8a9b09b5e2a6280c5ce363565e66303bb93a3945bd49bd15bf25a5815"
+        },
+        {
+          "path": "c07-archive-hdr/expect.json",
+          "size": 1480,
+          "sha256": "17c839bc778347c0209c8c56f93bf798b6e9c5b810fbdac61d4b7fe16d56df36"
+        },
+        {
+          "path": "c07-archive-hdr/pair/left/synthpkg-0.1.0.zip",
+          "size": 1182,
+          "sha256": "0692ee5d5c032310c28a9ce655d65f3a3895ae481dc7efe13bea1bd7ab19eaab"
+        },
+        {
+          "path": "c07-archive-hdr/pair/right/synthpkg-0.1.0.zip",
+          "size": 1182,
+          "sha256": "fe8a7c95d1440e7e11600962444b163cd9b713eb6f9c154993e6afeae0e21b43"
+        }
+      ]
+    },
+    {
+      "name": "c08-toolchain",
+      "files": [
+        {
+          "path": "c08-toolchain/README.md",
+          "size": 703,
+          "sha256": "b18fc96cb1253189b4047d7efeb0ac509326f34c0ef8fd458bbbb87be438549c"
+        },
+        {
+          "path": "c08-toolchain/expect.json",
+          "size": 1465,
+          "sha256": "de3605dd65427ba357eff87bf143bea10c40af561f097bbbfcd7623ae0cb7d28"
+        },
+        {
+          "path": "c08-toolchain/pair/left/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "434f7b6ca3932b86c02cff5754920d53c20c129e2c6170a136b96fb3de993874"
+        },
+        {
+          "path": "c08-toolchain/pair/right/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "5e1c3dbefc977870799456b89bf43a83bfb5cb7de891464fc5ff5b5a339cb7d1"
+        }
+      ]
+    },
+    {
+      "name": "c09-mtime-owner",
+      "files": [
+        {
+          "path": "c09-mtime-owner/README.md",
+          "size": 737,
+          "sha256": "bc5986eb6ed8c8cf35d375c2e29c74134af0b8a269cf99693e64e67a3b6829b8"
+        },
+        {
+          "path": "c09-mtime-owner/expect.json",
+          "size": 1493,
+          "sha256": "8460be49a4fa62bf638384f86a7a0e2a9b0186070a140b99c54ae567fad547cf"
+        },
+        {
+          "path": "c09-mtime-owner/pair/left/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "434d70b56f3a430014311028f463bd8013a9a1e7c84a163c91e16f6516ef80f8"
+        },
+        {
+          "path": "c09-mtime-owner/pair/right/synthpkg-0.1.0.tar",
+          "size": 7168,
+          "sha256": "36e7237ef1f3a3cc355e5c6524c2eb576f5466eafea4a4fe2d174234120aa67e"
+        }
+      ]
+    },
+    {
+      "name": "c10-toolchain-path",
+      "files": [
+        {
+          "path": "c10-toolchain-path/README.md",
+          "size": 757,
+          "sha256": "55c5eaf8a9ac9c29d09595eb13319d61190fcc886e83958240a4da8e318a3ffe"
+        },
+        {
+          "path": "c10-toolchain-path/expect.json",
+          "size": 1539,
+          "sha256": "9865fbe82382b9341cc2487a70f6e3104247000ac08ec6202fbf6eab503fa4f6"
+        },
+        {
+          "path": "c10-toolchain-path/pair/left/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "434f7b6ca3932b86c02cff5754920d53c20c129e2c6170a136b96fb3de993874"
+        },
+        {
+          "path": "c10-toolchain-path/pair/right/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "858161d305284ab037da62d092e4b5e1b03af25df4df9797ae76e0f52d0564f1"
+        }
+      ]
+    },
+    {
+      "name": "c11-real-change",
+      "files": [
+        {
+          "path": "c11-real-change/README.md",
+          "size": 1092,
+          "sha256": "e8fe0fb29c77440faa43323505bc8a274fd220c291f32b6659283d8d73de5611"
+        },
+        {
+          "path": "c11-real-change/expect.json",
+          "size": 1532,
+          "sha256": "763b0822f26ee34f5b76c38957710635ebc95337123c1bda00316ca7f3294c3b"
+        },
+        {
+          "path": "c11-real-change/pair/left/synthpkg-0.1.0.tar.gz",
+          "size": 577,
+          "sha256": "13a3d5834f93f0e20654bdbf74e5621fb1f2543be7b58d91d143e64bf32dcb22"
+        },
+        {
+          "path": "c11-real-change/pair/right/synthpkg-0.1.0.tar.gz",
+          "size": 579,
+          "sha256": "10339821e71d9e719bef50dfb4299937fc37b9d7c48daf2d37b93cfb4dc6c05e"
+        }
+      ]
+    },
+    {
+      "name": "c12-mixed",
+      "files": [
+        {
+          "path": "c12-mixed/README.md",
+          "size": 887,
+          "sha256": "240eac865ffa01206e432f2bb93791262b1f18c0cb41803d7bba3e72f7b26af9"
+        },
+        {
+          "path": "c12-mixed/expect.json",
+          "size": 1598,
+          "sha256": "0d71555d8235a5d5b4283e5d85c7d4be97f9b9143697ec105b18e7aa871a5878"
+        },
+        {
+          "path": "c12-mixed/pair/left/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "434f7b6ca3932b86c02cff5754920d53c20c129e2c6170a136b96fb3de993874"
+        },
+        {
+          "path": "c12-mixed/pair/right/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "c57e1952752f5180ae09beb2dff2df6578ad90eaf719f1670d2170907c198c67"
+        }
+      ]
+    },
+    {
+      "name": "c13-signature",
+      "files": [
+        {
+          "path": "c13-signature/README.md",
+          "size": 735,
+          "sha256": "07e22c85166f1d4b0fcf314f3f60f5da2c5958625fca55de9e828ae9f54ef82d"
+        },
+        {
+          "path": "c13-signature/expect.json",
+          "size": 1593,
+          "sha256": "0c9da1eca7ebb752676ad1af39e8904f5d166e9d65b85d53a11377b40954c829"
+        },
+        {
+          "path": "c13-signature/pair/left/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "e9069d4d23db229ae8a32c2b59ed98986cd82494392b8d779c9185ee55541c22"
+        },
+        {
+          "path": "c13-signature/pair/right/synthpkg-0.1.0.tar",
+          "size": 9216,
+          "sha256": "434f7b6ca3932b86c02cff5754920d53c20c129e2c6170a136b96fb3de993874"
+        }
+      ]
+    }
+  ],
+  "extra": [
+    "align-golden/dup-hash/README.md",
+    "align-golden/dup-hash/pair/left/pkg/a.txt",
+    "align-golden/dup-hash/pair/left/pkg/copy1.bin",
+    "align-golden/dup-hash/pair/left/pkg/copy2.bin",
+    "align-golden/dup-hash/pair/right/pkg/a.txt",
+    "align-golden/dup-hash/pair/right/pkg/moved.bin",
+    "align-golden/rename-add/README.md",
+    "align-golden/rename-add/pair/left/pkg/__init__.py",
+    "align-golden/rename-add/pair/left/pkg/core.py",
+    "align-golden/rename-add/pair/left/pkg/data.csv",
+    "align-golden/rename-add/pair/left/pkg/legacy.txt",
+    "align-golden/rename-add/pair/left/pkg/old_name.py",
+    "align-golden/rename-add/pair/right/pkg/__init__.py",
+    "align-golden/rename-add/pair/right/pkg/core.py",
+    "align-golden/rename-add/pair/right/pkg/data.csv",
+    "align-golden/rename-add/pair/right/pkg/extra.txt",
+    "align-golden/rename-add/pair/right/pkg/new_name.py",
+    "broken/README.md",
+    "broken/truncated.tar"
+  ]
+}

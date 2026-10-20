@@ -1,0 +1,61 @@
+{
+  "case": "c03-mode",
+  "title": "两侧 tar 仅文件权限不同（0644 vs 0755）",
+  "container": "tar",
+  "injected": [
+    "T3"
+  ],
+  "inputs": {
+    "left": {
+      "dir_mode": "0755",
+      "elf_build_id": "99d559f9a4c23a2d0fb3dd13702f57e9410976b7",
+      "elf_comment": "GCC: (GNU) 13.2.0",
+      "elf_comp_dir": "/build/synthpkg",
+      "elf_producer": "GNU C17 13.2.0 -O2 -fno-ident",
+      "elf_signature": "absent",
+      "entry_order": "listed",
+      "file_mode": "0644",
+      "gid": "1000",
+      "gname": "builder",
+      "gzip_os": "3",
+      "gzip_xfl": "2",
+      "mtime": "1700000000",
+      "prefix": "",
+      "uid": "1000",
+      "uname": "builder",
+      "zip_create_system": "3"
+    },
+    "right": {
+      "dir_mode": "0755",
+      "elf_build_id": "99d559f9a4c23a2d0fb3dd13702f57e9410976b7",
+      "elf_comment": "GCC: (GNU) 13.2.0",
+      "elf_comp_dir": "/build/synthpkg",
+      "elf_producer": "GNU C17 13.2.0 -O2 -fno-ident",
+      "elf_signature": "absent",
+      "entry_order": "listed",
+      "file_mode": "0755",
+      "gid": "1000",
+      "gname": "builder",
+      "gzip_os": "3",
+      "gzip_xfl": "2",
+      "mtime": "1700000000",
+      "prefix": "",
+      "uid": "1000",
+      "uname": "builder",
+      "zip_create_system": "3"
+    }
+  },
+  "expect": {
+    "counts_positive": [
+      "T3"
+    ],
+    "counts_allowed": [
+      "T3"
+    ],
+    "minimal_cause_set": [
+      "T3"
+    ],
+    "residue_bytes": 0,
+    "exit_code": 2
+  }
+}

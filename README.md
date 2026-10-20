@@ -6,7 +6,7 @@
 `bdiff` 是**纯本地 CLI**：单二进制、零第三方依赖、**不跑构建、不联网、不写输入目录**。
 输入只有两份现成的产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar），输出是确定性报告与一个退出码。
 
-**状态**：`v0.1.0-dev` · M0（计划 + 装订 + 骨架）。五个分析模块的计划与契约已冻结，实现从 M1 起逐棒落地。
+**状态**：`v0.1.0-dev` · M1（数据先行 + align）。13 组合成样张与 `bdiff align` 已落地；facts / attribute / minimize / report 从 M2 起逐棒落地。
 当前状态的真值在 `plan/05-里程碑与验收.md` §一；发布状态只以 Release 页与 `plan/` 为准。
 
 ## 一、里程碑状态
@@ -14,7 +14,7 @@
 | 里程碑 | 主题 | 状态 |
 |---|---|---|
 | M0 | 计划先行 + 方法论装订 + 可运行骨架 | ✅ 完成（2026-10-20） |
-| M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ⬜ 未开始 |
+| M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ✅ 完成（2026-10-20） |
 | M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ⬜ 未开始 |
 | M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ⬜ 未开始 |
 | M4 | minimize 模块：最小原因集穷举搜索 | ⬜ 未开始 |
@@ -37,7 +37,7 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 
 ## 三、三个最小场景
 
-> ⚠️ **当前是 M0 骨架**：`version` 与 `selftest` 已可用；`align` / `facts` / `compare` 会**显式报错并 exit 1**（"尚未实现"），不会返回假结果。下面三条命令是**目标形态**，随 M1–M5 逐条变绿。
+> ⚠️ **当前是 M1**：`version` / `selftest` / `align` 已可用；`facts` / `compare` 仍会**显式报错并 exit 1**（"尚未实现"），不会返回假结果。下面三条 `compare` 命令是**目标形态**，随 M2–M5 逐条变绿。
 
 ### 场景一：只差 mtime
 
@@ -110,7 +110,7 @@ go run ./tools/gen_fixtures --out data/fixtures --check   # 样张重建校验�
 
 # 守门的变异验证：证明上面那些门不是"恒绿装饰"
 node tools/verify-layout-mutations.mjs   # 布局门，11 组变异必须全红
-bash tools/verify-go-guards.sh           # Go 侧守门，6 组变异必须全红
+bash tools/verify-go-guards.sh           # Go 侧守门，8 组变异必须全红
 ```
 
 本仓库遵循 `ai-tool-project-sprint` 方法论：计划与验收口径全在 `plan/`（入口 `plan/00-README总览.md`），

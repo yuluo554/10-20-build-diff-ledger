@@ -25,14 +25,14 @@
 | `AGENTS.md` | 方法论锚点（门命令 + 强制布局 + 三条硬约束 + 环境事实） | ✅ v1（2026-10-20，M0） |
 | `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ v1（2026-10-20，M0） |
 | `tools/verify-layout-mutations.mjs` | 布局门变异验证（11 组，全红） | ✅ v1（2026-10-20，M0） |
-| `tools/verify-go-guards.sh` | Go 守门变异验证（6 组，全红） | ✅ v1（2026-10-20，M0） |
+| `tools/verify-go-guards.sh` | Go 守门变异验证（8 组，全红） | ✅ v1+M1（2026-10-20） |
 | `data/README.md` | 依据查证（三态 + URL + 基准日）/ 数据源可获取性 / 合成数据纪律 / 数值口径（T1–T12、归一化 op、树摘要、退出码、`\|S\|≤12`） | ✅ v1（2026-10-20，阶段 4） |
 | `.gitignore` | Go 标准模板 + 生成物输出目录 + 发布产物目录 | ✅ v1 |
 | `go.mod` / `cmd/bdiff/` / `internal/` | 可运行骨架（version / selftest 可用，五模块待 M1–M5） | ✅ v1（2026-10-20，M0） |
-| `tools/gen_fixtures/` | 样张生成器（M1 产出；M0 为可运行桩） | 🟡 M0 桩，M1 完成 |
+| `tools/gen_fixtures/` | 样张生成器（13 组样张 + align golden 输入 + 反例；手写 tar/gzip/zip/ELF） | ✅ v1（2026-10-20，M1） |
 | `.github/workflows/ci.yml` / `ci/example.yml` | CI 矩阵 + 门禁示例 | ✅ v1（2026-10-20，M0） |
 | `README.md` | 安装 / 三场景 / 字段说明 / 已知边界 / 状态表 | ✅ v1（2026-10-20，M0） |
-| `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出） | ⬜ 待 M1–M5 |
+| `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出；`align/` 已落地） | 🟡 `align/` ✅ M1，其余待 M2–M5 |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前落盘；发布后事实分栏追加） | ⬜ 待 M6 |
 
 ## 二、决策记录表
@@ -59,6 +59,10 @@
 | 2026-10-20 | 未知头部**必须**落 `raw_header_sha256`，不得静默丢弃 | "解析器没看懂"与"没有差异"必须可区分；这也是 M2 唯一可机械验收的反例形态 |
 | 2026-10-20 | 数值口径一处定义（`data/README.md` §四） | T1–T12 定义、归一化 op 语义、树摘要算法、退出码、`\|S\|≤12`、幂等要求只在该处定义；代码常量与文档摘录全部引用它，禁止第二套表述 |
 | 2026-10-20 | 发布里程碑采用 **A) Release 附产物** 口径 | M6 DoD 三件套：**git tag + GitHub Release 附产物（≥1 个手工上传附件，本地留副本 + sha256）+ 发布留档文件**。不降级为"源码 zipball 即产物" |
+| 2026-10-20 | `align` 的 `SAME` = **结构对齐**（同 relpath 同形态），不表示内容一致 | 内容差异归 attribute（T12 / `residue_bytes`）。否则每处真改都会被重复记成 `ADDED`+`REMOVED`，报告里的 `added`/`removed` 被内容差异污染 |
+| 2026-10-20 | §4.4 改名判定的"唯一"取 **每哈希唯一**（该 sha256 两侧各出现 1 次） | `plan/03` §二 的示例（同树 + 1 改名 + 1 新增 → `ADDED:1, RENAMED:1`）在"全局只剩一条 REMOVED/ADDED"的读法下永远不成立。两个 golden 同时钉住两种情形：`basic.json`（改名 + 新增同时算）与 `dup-hash.json`（同哈希多处 → 不判） |
+| 2026-10-20 | 样张归档字节**由生成器手写**（tar / gzip 成员头 / zip / ELF），zip 一律 `Store` | `archive/tar.Writer` 会做格式推断与字段补全、`compress/gzip.Writer` 取不到 XFL/OS；`Store` 让 zip 字节不随 Go 版本漂移（R3 的提前处置） |
+| 2026-10-20 | `c12-mixed` 的 `minimal_cause_set` 按 §4.5 判 `null` | 真改字节不可归一化 ⇒ 任何 S 都无法让树摘要相等。`plan/04` §二 "只含可解释类别"落为 `expect.json` 的 `counts_allowed` 约束（T1/T3/T9/T12） |
 
 ## 三、承诺-证据台账
 
@@ -66,11 +70,11 @@
 
 | 承诺项 | 素材来源 | 交付物内可达性 | 核验方式 | 状态 |
 |---|---|---|---|---|
-| 结构对齐（目录/tar/tar.gz/zip/whl/jar/OCI layer） | 标准库 `archive/tar`、`archive/zip`、`compress/gzip` | ✅ 单二进制内，无外部依赖 | `data/golden/align/basic.json` 逐字节 | ⬜ 待 M1 实现 |
-| 仅同哈希判改名 | 自定纪律（写进 `data/README.md` §四.4） | ✅ | 同树 +1 改名样张：恰 1 条 `RENAMED` | ⬜ 待 M1 实现 |
+| 结构对齐（目录/tar/tar.gz/zip/whl/jar/OCI layer） | 标准库 `archive/tar`、`archive/zip`、`compress/gzip` | ✅ 单二进制内，无外部依赖 | `data/golden/align/basic.json` 逐字节 | ✅ M1 |
+| 仅同哈希判改名 | 自定纪律（写进 `data/README.md` §四.4） | ✅ | 同树 +1 改名样张：恰 1 条 `RENAMED`；同哈希多处 → 0 条 | ✅ M1 |
 | 事实抽取（tar/zip/gzip/ELF/PE/Mach-O） | 标准库 `debug/elf`、`debug/pe`、`debug/macho` | ✅ | 每 key 一个单测 | ⬜ 待 M2 实现 |
 | 未知字段落 `raw_header_sha256` | 自定纪律（`data/README.md` §四.3） | ✅ | 未知扩展头反例样张 + 手工重算 sha256 | ⬜ 待 M2 实现 |
-| 闭合分类法 T1–T12 | 实证：HN 39967003 常见差异类别；`data/README.md` §四.1 一处定义 | ✅ | 12 组样张分类命中率 100% | ⬜ 待 M3 实现 |
+| 闭合分类法 T1–T12 | 实证：HN 39967003 常见差异类别；`data/README.md` §四.1 一处定义 | ✅ | 13 组样张分类命中率 100% | ⬜ 待 M3 实现 |
 | 归一化 op 幂等 | 自定纪律（纯函数） | ✅ | 逐 op `normalize(normalize(x))==normalize(x)` 断言 | ⬜ 待 M3 实现 |
 | 残留字节可复算 | 实际字节比对 | ✅ | golden 记录手工 `cmp` 计数 + 复现命令 | ⬜ 待 M3 实现 |
 | 最小原因集（非超集） | 自定搜索算法（`data/README.md` §四.5） | ✅ | `[T1]` / `[T1,T2]` 且 `len==2` / `null` 三组断言 | ⬜ 待 M4 实现 |
@@ -87,7 +91,7 @@
 
 | 能力名词 | 交付态命令 | 断言基准 |
 |---|---|---|
-| 分类计数 | `bdiff compare` 的 `counts` | 12 组样张 golden |
+| 分类计数 | `bdiff compare` 的 `counts` | 13 组样张 golden |
 | 残留字节 | `compare` 的 `residue_bytes` | golden 中手工 `cmp` 计数 |
 | 最小原因集 | `compare` 的 `minimal_cause_set` | 三组断言（`[T1]` / 非超集 `[T1,T2]` / `null`） |
 
@@ -100,7 +104,7 @@
 | 单二进制产物（`dist/bdiff-<os>-<arch>`，Release 附产物） | `dist/bdiff-<os>-<arch>`（本地副本）+ `plan/RELEASE-M6.md` 内 sha256 记录 | M6 | `sha256sum` 与留档比对；无 Go 工具链机器直接运行 |
 | 源码可重建 | `cmd/bdiff/main.go`、`internal/{align,facts,attribute,minimize,report}/`、`go.mod` | M1–M5 | `go build ./...`（干净环境） |
 | 样张生成器 | `tools/gen_fixtures/main.go` | M1 | 重跑生成器后 `git status` 无 golden 变更 |
-| 12 组样张 | `data/fixtures/<case>/`（每case 含 `pair/`、`README.md`、`expect.json`） | M1 | golden 集逐字节比对 |
+| 13 组样张 + align golden 输入 + 反例 | `data/fixtures/<case>/`（每组含 `pair/`、`README.md`、`expect.json`）、`data/fixtures/align-golden/`、`data/fixtures/broken/` | M1 | `go run ./tools/gen_fixtures --out data/fixtures --check` → `13 cases, 0 diff` |
 | golden 集 | `data/golden/{align,facts,attribute,minimize,report}/**` | M1–M5 | 每文件附生成命令 + 手工复现命令；`cmp` 计数一致 |
 | README | `README.md` | M6 | 三场景最小复现命令逐条跑通 |
 | 发布留档 | `plan/RELEASE-M6.md` | M6（tag 前落盘） | `git cat-file -e <tag>:plan/RELEASE-M6.md` |
@@ -113,7 +117,7 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | **M0 计划先行 + 装订 + 骨架** | 方法论装订（`AGENTS.md` + 布局门 + 装订行）；`plan/00`–`06`；`data/README.md`；可运行骨架（`cmd/bdiff` + `internal/*` + `tools/gen_fixtures` 桩）；CI 与门禁示例 | ✅ 完成（2026-10-20） |
-| **M1 数据先行 + align** | 样张生成器 `tools/gen_fixtures/`：同源码、不同 `SOURCE_DATE_EPOCH` / `umask` / `uid` / 构建目录，**构建两次**；产出 13 组样张 + `data/golden/align/basic.json`；`internal/artifact` + `internal/align` | ⬜ 未开始 |
+| **M1 数据先行 + align** | 样张生成器 `tools/gen_fixtures/`：同源码、不同 `SOURCE_DATE_EPOCH` / `umask` / `uid` / 构建目录，**构建两次**；产出 13 组样张 + `data/golden/align/basic.json`；`internal/artifact` + `internal/align` | ✅ 完成（2026-10-20） |
 | **M2 解析（facts）** | tar/zip/gzip 头 + ELF/PE/Mach-O 事实抽取；`raw_header_sha256` 兜底 | ⬜ 未开始 |
 | **M3 归因（attribute）** | T1–T12 分类 + 幂等归一化 op + 树摘要 + 残留字节 | ⬜ 未开始 |
 | **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | ⬜ 未开始 |
