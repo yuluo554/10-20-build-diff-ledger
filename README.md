@@ -6,7 +6,7 @@
 `bdiff` 是**纯本地 CLI**：单二进制、零第三方依赖、**不跑构建、不联网、不写输入目录**。
 输入只有两份现成的产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar），输出是确定性报告与一个退出码。
 
-**状态**：`v0.1.0-dev` · M3（attribute）。14 组合成样张、`bdiff align` / `bdiff facts` / 归因（`bdiff compare` 的 JSON 输出）已落地；minimize / report 从 M4 起逐棒落地。
+**状态**：`v0.1.0-dev` · M4（minimize）。14 组合成样张、`bdiff align` / `bdiff facts` / 归因（`bdiff compare` 的 JSON 输出）、最小原因集穷举搜索已落地；report 从 M5 起落地。
 当前状态的真值在 `plan/05-里程碑与验收.md` §一；发布状态只以 Release 页与 `plan/` 为准。
 
 ## 一、里程碑状态
@@ -17,7 +17,7 @@
 | M1 | 数据先行：样张生成器 + 13 组样张 + align 模块与 golden | ✅ 完成（2026-10-20） |
 | M2 | facts 模块：tar/zip/gzip + ELF/PE/Mach-O + `raw_header_sha256` | ✅ 完成（2026-10-20） |
 | M3 | attribute 模块：T1–T12 分类 + 幂等归一化 + 树摘要 + 残留字节 | ✅ 完成（2026-10-20） |
-| M4 | minimize 模块：最小原因集穷举搜索 | ⬜ 未开始 |
+| M4 | minimize 模块：最小原因集穷举搜索 | ✅ 完成（2026-10-20） |
 | M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ⬜ 未开始 |
 | M6 | 干净环境验证 + 脱敏 + 发布（tag + Release 附产物 + 留档） | ⬜ 未开始 |
 

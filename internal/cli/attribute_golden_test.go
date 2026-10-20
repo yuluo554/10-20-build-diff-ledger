@@ -15,8 +15,9 @@ import (
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/normalize"
 )
 
-// -update 重写 data/golden/attribute/*.json（生成命令见该目录 README）。
-var update = flag.Bool("update", false, "rewrite data/golden/attribute/*.json")
+// -update 重写 data/golden/attribute/*.json 与 data/golden/minimize/*.json
+// （生成命令见各目录 README）。
+var update = flag.Bool("update", false, "rewrite data/golden/{attribute,minimize}/*.json")
 
 var fixtureCases = []string{
 	"c01-mtime", "c02-owner", "c03-mode", "c04-prefix", "c05-order",
@@ -26,7 +27,7 @@ var fixtureCases = []string{
 }
 
 // fixtureArtifacts 返回 (左侧归档, 右侧归档)。样张目录里各只有一个产物文件。
-func fixtureArtifacts(t *testing.T, caseName string) (string, string) {
+func fixtureArtifacts(t testing.TB, caseName string) (string, string) {
 	t.Helper()
 	root := filepath.Join("..", "..", "data", "fixtures", caseName, "pair")
 	pick := func(side string) string {
@@ -129,7 +130,8 @@ func TestFixtureMatrix(t *testing.T) {
 
 // TestExpectedCauseSetEqualizesDigests 用 expect.json 的 minimal_cause_set 复算树摘要：
 // 非 null → 施加该集合后两侧摘要必须相等；null（真改）→ 全集 T1–T11 后仍不等。
-// 这是 M3"树摘要重算一致"的落点；**搜索算法本身**在 M4 落地。
+// 这是 M3"树摘要重算一致"的落点；**搜索算法本身**由 M4 的
+// `TestMinimizeFixtureMatrix` / `TestMinimizeDoDCases` 覆盖（本测试只验期望集合自洽）。
 func TestExpectedCauseSetEqualizesDigests(t *testing.T) {
 	all := []string{}
 	for _, r := range ruleIDs() {
@@ -153,7 +155,8 @@ func TestExpectedCauseSetEqualizesDigests(t *testing.T) {
 			if d1, d2 := normalize.TreeDigest(set, le), normalize.TreeDigest(set, re); d1 != d2 {
 				t.Fatalf("施加 %v 后摘要仍不等：%s vs %s", set, d1, d2)
 			}
-			// 真·最小性：去掉集合里任一规则后必须不等（M4 的显式非超集断言在 M4 复跑）。
+			// 真·最小性：去掉集合里任一规则后必须不等
+			// （搜索侧的同口径断言在 M4：TestMinimizeDoDCases 的 len==2 显式非超集）。
 			for i := range set {
 				sub := append(append([]string(nil), set[:i]...), set[i+1:]...)
 				if len(sub) == 0 {
@@ -280,7 +283,7 @@ func TestCompareBudgetAllowsMetadataOnly(t *testing.T) {
 
 // entriesOf 走与 CLI 相同的装载 + facts 抽取，再用 attribute 的预处理
 // （公共根前缀 / 归档内序号）生成归一化条目。
-func entriesOf(t *testing.T, p string) []normalize.Entry {
+func entriesOf(t testing.TB, p string) []normalize.Entry {
 	t.Helper()
 	doc, err := artifact.LoadDocument(p, "", 0)
 	if err != nil {

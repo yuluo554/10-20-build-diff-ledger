@@ -10,8 +10,9 @@ import (
 	"github.com/yuluo554/10-20-build-diff-ledger/internal/model"
 )
 
-// ErrNotImplemented 表示搜索尚未落地（M4）。
-var ErrNotImplemented = errors.New("minimize 尚未实现（计划于 M4 落地）")
+// ErrNilDigest 表示调用方没有提供摘要函数。
+// 显式报错而不是把 nil 当"恒等"——否则无解会被伪装成"完全一致"。
+var ErrNilDigest = errors.New("minimize: 摘要函数不得为 nil")
 
 // MaxSetSize 是 |S| 的上界（data/README.md §4.5）。
 // 由 model.RuleIDs 的长度派生，不写魔数——新增规则时自动跟上。
@@ -19,11 +20,25 @@ var MaxSetSize = len(model.RuleIDs)
 
 // Search 返回使两侧树摘要相等的基数最小的规则集合。
 //
+// 枚举顺序完全由 Combinations 决定（基数升序、同基数字典序），命中即停：
+// 首个命中即最小，不需要再比较"是否有更小的集合"。
+// 不剪枝、不随机、不启发（§4.5）——每个候选都真实计算两侧摘要。
+//
 // 返回：
-//   - (set, true, nil)  找到解（set 可能为空切片 = 完全一致）
+//   - (set, true, nil)  找到解；set 为**非 nil 空切片** = 两侧完全一致
 //   - (nil, false, nil) 无解（调用方必须同时满足 residue_bytes > 0）
+//   - (nil, false, err) 入参非法（摘要函数为 nil）
 func Search(leftDigest func([]string) string, rightDigest func([]string) string) ([]string, bool, error) {
-	return nil, false, ErrNotImplemented
+	if leftDigest == nil || rightDigest == nil {
+		return nil, false, ErrNilDigest
+	}
+	for _, set := range Combinations() {
+		if leftDigest(set) == rightDigest(set) {
+			// 复制一份返回：Combinations 每次重建，但调用方不应依赖内部切片。
+			return append([]string{}, set...), true, nil
+		}
+	}
+	return nil, false, nil
 }
 
 // Combinations 按既定顺序枚举全集的所有子集：先按基数升序，同基数按字典序。

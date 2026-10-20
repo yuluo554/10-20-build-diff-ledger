@@ -73,15 +73,15 @@ const MUTATIONS = [
   },
   {
     id: "V4",
-    label: "plan/05 把 M4 翻成 ✅（其它副本仍 ⬜）",
+    label: "plan/05 把 M5 翻成 ✅（其它副本仍 ⬜）",
     expect: "LAYOUT.STATUS",
-    // 靶子必须挑**未完成**的里程碑：M1/M2/M3 收尾后那些行已是 ✅，
+    // 靶子必须挑**未完成**的里程碑：M1–M4 收尾后那些行已是 ✅，
     // 再拿它们当靶子只会报"marker 不存在"，变异根本没发生。
     apply: () =>
       mutate(
         "plan/05-里程碑与验收.md",
-        "| M4 | minimize 模块：最小原因集穷举搜索 | ⬜ 未开始 |",
-        "| M4 | minimize 模块：最小原因集穷举搜索 | ✅ 完成 |",
+        "| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ⬜ 未开始 |",
+        "| M5 | report 模块：固定键序报告 + 退出码矩阵 + `--budget` + `ci/example.yml` | ✅ 完成 |",
         "V4",
       ),
   },
@@ -152,11 +152,13 @@ const MUTATIONS = [
     id: "V10",
     label: "plan/05 引用一个不存在的 tools 脚本路径",
     expect: "LAYOUT.DOC_TOOLS",
+    // marker 随里程碑推进而更新：M4 收尾后 `HANDOFF-M5` 已打勾，
+    // 改打 M5 DoD 里仍未完成的 `HANDOFF-M6`。
     apply: () =>
       mutate(
         "plan/05-里程碑与验收.md",
-        "- [ ] HANDOFF-M5",
-        "- [ ] 先跑 `tools/definitely-missing.go`\n- [ ] HANDOFF-M5",
+        "- [ ] HANDOFF-M6",
+        "- [ ] 先跑 `tools/definitely-missing.go`\n- [ ] HANDOFF-M6",
         "V10",
       ),
   },

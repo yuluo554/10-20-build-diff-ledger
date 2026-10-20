@@ -168,10 +168,19 @@ b=$(apply internal/attribute/attribute.go \
 expect_red "G9 tar.mtime 误分类" ./internal/cli TestFixtureMatrix
 restore internal/attribute/attribute.go "$b" "G9"
 
+# G10：把候选枚举改成基数降序 → 首个命中退化成全集（"最小集"变超集）。
+# 这是 M4 新增判据（最小性 / 非超集）的变异：证明 TestMinimizeDoDCases 不是在"恒绿"。
+b=$(apply internal/minimize/minimize.go \
+  $'\tfor size := 0; size <= MaxSetSize; size++ {' \
+  $'\tfor size := MaxSetSize; size >= 0; size-- {' \
+  "G10 枚举基数降序")
+expect_red "G10 枚举基数降序" ./internal/cli TestMinimizeDoDCases
+restore internal/minimize/minimize.go "$b" "G10"
+
 rm -rf "$tmp"
 
 if [ "$fail" -ne 0 ]; then
   echo "结论：$fail 条变异未如期变红"
   exit 1
 fi
-echo "结论：9/9 组 Go 守门变异如期变红，还原后源码字节一致"
+echo "结论：10/10 组 Go 守门变异如期变红，还原后源码字节一致"

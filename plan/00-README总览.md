@@ -120,7 +120,7 @@
 | **M1 数据先行 + align** | 样张生成器 `tools/gen_fixtures/`：同源码、不同 `SOURCE_DATE_EPOCH` / `umask` / `uid` / 构建目录，**构建两次**；产出 13 组样张 + `data/golden/align/basic.json`；`internal/artifact` + `internal/align` | ✅ 完成（2026-10-20） |
 | **M2 解析（facts）** | tar/zip/gzip 头 + ELF/PE/Mach-O 事实抽取；`raw_header_sha256` 兜底 | ✅ 完成（2026-10-20） |
 | **M3 归因（attribute）** | T1–T12 分类 + 幂等归一化 op + 树摘要 + 残留字节 | ✅ 完成（2026-10-20） |
-| **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | ⬜ 未开始 |
+| **M4 最小集（minimize）** | 按基数升序 + 字典序的穷举搜索（`\|S\|≤12`） | ✅ 完成（2026-10-20） |
 | **M5 报告与门禁（report）** | `report.json` + `report.md` 固定键序；退出码 0/1/2/3；`--budget` 白名单；`ci/example.yml` | ⬜ 未开始 |
 | **M6 发布** | 干净环境验证 + 发布 | ⬜ 未开始 |
 
@@ -153,5 +153,17 @@
 ```
 go version → go1.27.0 windows/amd64
 ```
+
+**M4 最小原因集搜索耗时（实测，2026-10-20；不写进断言）**：
+
+| 项 | 实测 |
+|---|---|
+| 机器 | ASUS TUF Gaming F16 FX607JVR（CPU：Intel Core i9-14900HX） |
+| 命令 | `go test ./internal/cli -run '^$' -bench BenchmarkMinimizeSearch -benchtime=5x -count=1` |
+| 早期命中（`c01-mtime`：候选 ∅ → `[T1]`） | `669560 ns/op` ≈ 0.67 ms |
+| 无解全扫（`c12-mixed`：4096 个候选 × 两侧摘要） | `649155960 ns/op` ≈ 0.65 s |
+
+口径：耗时随样张条目数与 ELF 节重写次数变化；上表是**本机实测值**，只回填文档，
+不得写成测试阈值（`plan/06` §五「性能」一行）。
 
 **纪律**：本表任何一行在下一棒引用前先复测（"本机没有 X"这类事实会过期）。

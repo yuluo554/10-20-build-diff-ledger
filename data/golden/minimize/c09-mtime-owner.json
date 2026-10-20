@@ -1,0 +1,1 @@
+{"case":"c09-mtime-owner","minimal_cause_set":["T1","T2"],"found":true,"residue_bytes":0,"digest_set":["T1","T2"],"digest_left":"b20ee7b5ff01b3a752d733d1f01948ad496dc35ababf64b5089df47b8af0cc57","digest_right":"b20ee7b5ff01b3a752d733d1f01948ad496dc35ababf64b5089df47b8af0cc57"}
