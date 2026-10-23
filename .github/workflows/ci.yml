@@ -58,10 +58,10 @@ jobs:
       - name: "fixtures rebuild check (byte-identical)"
         shell: bash
         run: go run ./tools/gen_fixtures --out data/fixtures --check
-      - name: "build (trimpath, CGO off)"
+      - name: "build (trimpath, CGO off, no vcs stamp)"
         shell: bash
         run: |
-          CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
+          CGO_ENABLED=0 go build -trimpath -buildvcs=false -o bdiff ./cmd/bdiff
           ./bdiff version
           ./bdiff selftest
       - name: "forbidden import scan (CI mirror)"

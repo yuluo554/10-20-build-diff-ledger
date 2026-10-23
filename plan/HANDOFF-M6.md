@@ -184,7 +184,7 @@ go test ./internal/cli -run TestReportGolden -update       # 改行为后重生�
 go test ./internal/report -count=1
 
 # 真跑一条 compare（注意 go run 会把 exit 2 折成 1）
-CGO_ENABLED=0 go build -trimpath -o .tmp-bdiff/bdiff ./cmd/bdiff
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -o .tmp-bdiff/bdiff ./cmd/bdiff
 .tmp-bdiff/bdiff compare \
   --left  data/fixtures/c01-mtime/pair/left/synthpkg-0.1.0.tar \
   --right data/fixtures/c01-mtime/pair/right/synthpkg-0.1.0.tar \

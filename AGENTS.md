@@ -33,6 +33,9 @@ node tools/check-sprint-layout.mjs
 
 ## 环境事实与禁忌（实测日期 2026-10-20）
 
-- 本机 Windows + Git Bash；`node v24.15.0` 可用；**Go 工具链需按需安装**（本次经 `winget`/阿里云镜像装到 `C:\Program Files\Go`，`go version` 实测见 `plan/00` §八）。
+- 本机 Windows + Git Bash；`node v24.15.0` 可用；**Go 工具链需按需安装**：本次经阿里云镜像装到
+  `C:\Users\ASUS\AppData\Local\Programs\Go`（2026-10-23 复核）。**`C:\Program Files\Go` 不存在**，
+  且 Go 的 `bin` **不在 PATH**——不设 PATH 时 `go` 报 `command not found`，Git Bash 下先
+  `export PATH="/c/Users/ASUS/AppData/Local/Programs/Go/bin:$PATH"`；`go version` 实测见 `plan/00` §八。
 - 国内网络：`go.dev` 直连不稳，`proxy.golang.org` 不通；本项目**零第三方依赖**，不需要 GOPROXY 拉包。
 - **禁止**：把"未执行"写成已完成；在 tag 之后改交付面代码；把 benchmark/星数等漂移数字写进代码或断言。

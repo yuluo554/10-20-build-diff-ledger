@@ -44,3 +44,43 @@
 | CI 实跑（U1） | 实现 | 首推 run `39448714961` 全绿（layout / determinism / 2×OS × 2×Go 矩阵） |
 | 跨平台 CI 矩阵（U2） | 实现 | ubuntu-latest + windows-latest × go1.22/1.24 四组合全绿 |
 | 真实发行版产物覆盖（U5/R4） | 不适用 | 边界承诺：仅合成样张，不承诺真实发行版 |
+
+## 四、v0.1.1 发布记录（2026-10-23 二次迭代）
+
+### 4.1 为什么发 0.1.1 而不是重发 0.1.0
+
+`v0.1.0` 有四处已发布面缺陷，全部实测确认（诊断见 `update/00-诊断报告.md`）：
+
+| # | 缺陷 | 实测 |
+|---|---|---|
+| D1 | `v0.1.0` **自己那棵树的 CI 是 failure** | run `39442868080`：6 job 里 5 红（Test 四腿 + determinism）。`git archive v0.1.0` 导出树用 go1.22 跑 `gen_fixtures --check` → `14 cases, 5 diff`；HEAD 树同版本 → `0 diff`。根因：tag 的样张是 `flate.HuffmanOnly` 时代生成的，deflate 末块编码随 Go 版本漂；修复（手写 RFC 1951 stored 块）在 tag 之后 |
+| D2 | Release **正文**的 sha256 与实际附件 digest 不一致 | 正文写 `9dcb6ab6…`；附件 API digest 与本地文件都是 `05e7a4ef…`；`grep -rn 9dcb6ab6` 全仓 0 命中 |
+| D3 | `SHA256SUMS` 带 `dist/` 前缀 | 内容为 `05e7a4ef… *dist/bdiff-windows-amd64.exe`；按标准方式在下载目录里 `sha256sum -c` → `No such file or directory`，exit 1 |
+| D4 | 发布件由**失败 commit + dirty 树**构建 | `go version -m` → `v0.1.0-0.20261020145702-0051572deb9a+dirty`，`vcs.modified=true`；`0051572` 正是 CI go test 四腿全红的那个提交 |
+
+处置（用户决策 DEC1 = A）：**升 0.1.1 发新版，`v0.1.0` 的 tag 与 Release 原样保留、不下架**，
+本文 §一/§二 保持原样作为历史，缺陷与替代关系记录在本节。
+**任何读到 `05e7a4ef…` 的地方都应改用下表的 `0.1.1` 值。**
+
+### 4.2 0.1.1 事实
+
+| 项 | 值 |
+|---|---|
+| 版本号 | `0.1.1`（`internal/version.Version`；`bdiff version` 与 14 份 `report.json.tool_version` / `data/golden/report/*.json` 三处一致） |
+| schema | `report.json` schema = 1（未变） |
+| 构建命令 | `CGO_ENABLED=0 go build -trimpath -buildvcs=false -o dist/bdiff-windows-amd64.exe ./cmd/bdiff` |
+| Go 版本 | `go1.27.0 windows/amd64`（另用 `go1.22.12` 跑了 vet / test / `--check`） |
+| 源 commit | 见 §4.3（tag `v0.1.1` 指向的提交；`-buildvcs=false` 故 buildinfo 无 `vcs.revision`，按 DEC2-A 改由本表显式记录） |
+| 产物 | `dist/bdiff-windows-amd64.exe`，5,711,360 B |
+| 产物 sha256 | `1cf09b1686261fc9fe14f86b02f693c39d9497e44f9d1b4a184961e9e382cee1` |
+| `SHA256SUMS` | 90 B，单行 `1cf09b16… *bdiff-windows-amd64.exe`（**无 `dist/` 前缀**） |
+| 可复现 | 同一命令连打两次 → `cmp` 逐字节相同（两次 sha256 均为 `1cf09b16…`），与 `dist/` 里的发布件同值 |
+
+**发布承诺边界（DEC3 = A）**：只承诺**「回下载件 == 发布件」**（`sha256sum -c SHA256SUMS`）。
+**不承诺**"任意机器重建出同一字节"——跨机/跨 Go 版本未实测，不写进承诺。
+
+### 4.3 发布后回填
+
+- 0.1.1 的 tag、Release URL、附件 digest、回下载 `sha256sum -c` 结果，以及 CI run id，
+  在发布动作完成后回填到本节（执行记录见仓库外 `update/03-执行记录.md`）。
+

@@ -120,7 +120,7 @@ go vet ./...
 go test ./...
 
 # 构建与冒烟
-CGO_ENABLED=0 go build -trimpath -o /tmp/bdiff.exe ./cmd/bdiff
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /tmp/bdiff.exe ./cmd/bdiff
 /tmp/bdiff.exe version
 /tmp/bdiff.exe selftest
 

@@ -59,7 +59,7 @@ jobs:
           path: report/
 
 # ── 本地等价跑法（不联网） ───────────────────────────────────────────────
-# 1) 先本地构建：CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
+# 1) 先本地构建：CGO_ENABLED=0 go build -trimpath -buildvcs=false -o bdiff ./cmd/bdiff
 # 2) 用两个已产出的产物替换下面的路径，逐条敲：
 #
 #    ./bdiff compare --left A --right B --budget T1,T2 --out report

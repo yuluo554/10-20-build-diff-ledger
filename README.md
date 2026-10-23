@@ -6,7 +6,7 @@
 `bdiff` 是**纯本地 CLI**：单二进制、零第三方依赖、**不跑构建、不联网、不写输入目录**。
 输入只有两份现成的产物（目录 / tar / tar.gz / zip / whl / jar / OCI layer tar），输出是确定性报告与一个退出码。
 
-**状态**：`v0.1.0` · M6（发布）。全部 M0–M6 功能已落地：14 组合成样张、`bdiff align` / `bdiff facts` / `bdiff compare`（确定性报告 + 最小原因集 + 退出码门禁）；版本定版于 `internal/version`。
+**状态**：`v0.1.1` · M6（发布）。全部 M0–M6 功能已落地：14 组合成样张、`bdiff align` / `bdiff facts` / `bdiff compare`（确定性报告 + 最小原因集 + 退出码门禁）；版本定版于 `internal/version`。
 当前状态的真值在 `plan/05-里程碑与验收.md` §一；发布状态只以 Release 页与 `plan/` 为准。
 
 ## 一、里程碑状态
@@ -29,12 +29,35 @@
 ```bash
 git clone https://github.com/yuluo554/10-20-build-diff-ledger.git
 cd 10-20-build-diff-ledger
-CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -o bdiff ./cmd/bdiff
 ./bdiff version          # 期望 exit=0
 ./bdiff selftest         # 期望 exit=0
 ```
 
-发布版另提供 `dist/bdiff-<os>-<arch>`（见 Release 附件），下载后直接运行，无需 Go。
+`-buildvcs=false` 是**必需的**：嵌进二进制的 vcs 信息会带上 `vcs.modified`（工作树脏不脏）
+与构建时刻，产物落在仓库内时下一次构建 `vcs.modified` 会翻转 → 两次构建不再逐字节相同（实测）。
+发布件用**同一组 flag**，只改输出路径：
+
+```bash
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -o dist/bdiff-windows-amd64.exe ./cmd/bdiff
+```
+
+`dist/` 与裸名 `bdiff` / `b1` / `b2` 都已 `.gitignore`。发布版另见 Release 附件（下载后直接运行，无需 Go）。
+
+### 校验下载件
+
+Release 附件旁的 `SHA256SUMS` 里是**纯文件名**（无 `dist/` 之类本机目录前缀），
+所以下载到同一个目录后按标准方式校验即可：
+
+```bash
+mkdir relcheck && cd relcheck
+gh release download v0.1.1 -R yuluo554/10-20-build-diff-ledger
+sha256sum -c SHA256SUMS     # 期望 bdiff-windows-amd64.exe: OK
+```
+
+本项目的发布承诺只到这里：**「回下载件 == 发布件」可校验**（同一 sha256）。
+**不承诺**"任意机器重建出同一字节"——Go 工具链版本、目标 OS 都会影响产物字节；
+可追溯性由 `plan/RELEASE-M6.md` §四记录的「构建命令 + Go 版本 + 源 commit sha + 产物 sha256」承担。
 
 ## 三、三个最小场景
 
@@ -121,7 +144,7 @@ CGO_ENABLED=0 go build -trimpath -o bdiff ./cmd/bdiff
 5. **不含** `deb` / `rpm` / `apk`、不含 registry 拉取、不含 `--against-tag`（扩展项，不进首期判定路径）。
 6. **不承诺自然语言"为什么"**：只承诺分类计数、残留字节、最小原因集这三件可复算的事。
 7. **合成样张上的验证**：分类命中率在程序化生成的 14 组样张上验证；真实发行版产物的覆盖不作为承诺（`plan/06` R4）。
-8. **跨平台**：本机只在 Windows + Git Bash 验证过；Linux/macOS 行为由 CI 矩阵验证（尚无远端，见 `plan/05` §三 U1/U2）。
+8. **跨平台**：本机只在 Windows + Git Bash 验证过；Linux/macOS 行为由 CI 矩阵（ubuntu-latest / windows-latest × go1.22 / 1.24）验证，run id 见 `plan/05` §三 U1/U2。
 
 ## 七、隐私与确定性
 
@@ -139,7 +162,7 @@ go run ./tools/gen_fixtures --out data/fixtures --check   # 样张重建校验�
 
 # 守门的变异验证：证明上面那些门不是"恒绿装饰"
 node tools/verify-layout-mutations.mjs   # 布局门，11 组变异必须全红
-bash tools/verify-go-guards.sh           # Go 侧守门，9 组变异必须全红
+bash tools/verify-go-guards.sh           # Go 侧守门，13 组变异必须全红
 ```
 
 本仓库遵循 `ai-tool-project-sprint` 方法论：计划与验收口径全在 `plan/`（入口 `plan/00-README总览.md`），

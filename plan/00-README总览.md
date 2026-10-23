@@ -34,7 +34,7 @@
 | `.github/workflows/ci.yml` / `ci/example.yml` | CI 矩阵 + 门禁示例 | ✅ v1（2026-10-20，M0） |
 | `README.md` | 安装 / 三场景 / 字段说明 / 已知边界 / 状态表 | ✅ v1（2026-10-20，M0） |
 | `data/golden/` | align / facts / attribute / minimize / report 五组 golden（M1–M5 逐段产出） | ✅ 五组齐（`report/` 为 14 × 2 份 json+md） |
-| `plan/RELEASE-M6.md` | 发布留档（tag 前落盘；发布后事实分栏追加） | ⬜ 待 M6 |
+| `plan/RELEASE-M6.md` | 发布留档（tag 前落盘；发布后事实分栏追加；§四 为 `v0.1.1` 二次迭代记录） | ✅ M6 + 0.1.1（2026-10-23） |
 
 ## 二、决策记录表
 
@@ -64,6 +64,9 @@
 | 2026-10-20 | §4.4 改名判定的"唯一"取 **每哈希唯一**（该 sha256 两侧各出现 1 次） | `plan/03` §二 的示例（同树 + 1 改名 + 1 新增 → `ADDED:1, RENAMED:1`）在"全局只剩一条 REMOVED/ADDED"的读法下永远不成立。两个 golden 同时钉住两种情形：`basic.json`（改名 + 新增同时算）与 `dup-hash.json`（同哈希多处 → 不判） |
 | 2026-10-20 | 样张归档字节**由生成器手写**（tar / gzip 成员头 / zip / ELF），zip 一律 `Store` | `archive/tar.Writer` 会做格式推断与字段补全、`compress/gzip.Writer` 取不到 XFL/OS；`Store` 让 zip 字节不随 Go 版本漂移（R3 的提前处置） |
 | 2026-10-20 | `c12-mixed` 的 `minimal_cause_set` 按 §4.5 判 `null` | 真改字节不可归一化 ⇒ 任何 S 都无法让树摘要相等。`plan/04` §二 "只含可解释类别"落为 `expect.json` 的 `counts_allowed` 约束（T1/T3/T9/T12） |
+| 2026-10-23 | 已发布 tag / Release 的处置：**升 0.1.1 发新版**，`v0.1.0` 原样保留并标注已知问题 | `v0.1.0` 的 tag 树自跑 CI 是 failure（样张 deflate 跨 Go 版本漂移，修复在其后）、Release 正文 sha 错、`SHA256SUMS` 带 `dist/` 前缀、附件由失败 commit + dirty 树构建。移动已发布 tag 会破坏「已发布 tag 不动」，且任何已下载旧件会与新 tag 不符 |
+| 2026-10-23 | 发布件构建命令统一为 `CGO_ENABLED=0 go build -trimpath -buildvcs=false` | `vcs.modified` 随工作树脏不脏翻转 → 产物落仓库内时两次构建不再逐字节相同（实测 `cmp` NOT_EQUAL）。与 CI `determinism` job 同一组 flag；可追溯性改由发布留档显式记录构建命令 + Go 版本 + 源 commit sha + 产物 sha256 |
+| 2026-10-23 | 发布承诺边界 = **「回下载件 == 发布件」可校验**，不承诺「任意机器重建同一字节」 | 现有证据只有本机 Windows 两次构建相同；Go 工具链版本与目标 OS 都会影响字节，跨机可重建需先做跨版本/跨 OS 实测，不先写进承诺 |
 
 ## 三、承诺-证据台账
 
@@ -146,14 +149,22 @@
 | Go | `go version` | 见下（本机原无 Go，本次安装） | 2026-10-20 |
 | 网络 | `curl https://proxy.golang.org/` | 不通（国内网络）；`https://go.dev/dl/` 302，`mirrors.aliyun.com/golang/` 206 | 2026-10-20 |
 | 默认分支 | `git branch --show-current` | `main` | 2026-10-20 |
-| 远端 | `git remote -v` | **无远端**（CI 待首推验证） | 2026-10-20 |
+| 远端 | `git remote -v` | `origin` = `https://github.com/yuluo554/10-20-build-diff-ledger` | 2026-10-20 建；2026-10-23 复核 |
+| CI 实况 | `gh api .../actions/runs` | 7 条 run（6 绿 1 红）；HEAD `ba22b6a` 的 `39455730067` 六 job 全 success | 2026-10-23 |
 
 **Go 安装记录（本机首次）**：`go.dev` 直连 TLS 失败、`proxy.golang.org` 不通 → 用阿里云镜像
-`https://mirrors.aliyun.com/golang/go1.27.0.windows-amd64.zip` 下载并解到 `C:\Program Files\Go`。
+`https://mirrors.aliyun.com/golang/go1.27.0.windows-amd64.zip` 下载并解到 **`C:\Users\ASUS\AppData\Local\Programs\Go`**。
+
+> ⚠ **`C:\Program Files\Go` 不存在**（2026-10-23 实测 `ls -d "C:\Program Files\Go"` → No such file or directory）；
+> 且 Go 的 `bin` **不在系统 PATH** 里——不设 PATH 时 `go` 报 `command not found`。Git Bash 下先设：
+> `export PATH="/c/Users/ASUS/AppData/Local/Programs/Go/bin:$PATH"`（`tools/verify-go-guards.sh` 会自己按 `$LOCALAPPDATA` 兜底探测）。
+> 第二个工具链 `go1.22.12` 已在本机 module 缓存里，用 `GOTOOLCHAIN=go1.22.12 go version` 调起，**不需要下载**。
+
 **本项目零第三方依赖**，因此不需要 GOPROXY；`go build`/`go test` 可离线运行。安装后的实测版本号回填在本行下方：
 
 ```
 go version → go1.27.0 windows/amd64
+GOTOOLCHAIN=go1.22.12 go version → go1.22.12 windows/amd64
 ```
 
 **M4 最小原因集搜索耗时（实测，2026-10-20；不写进断言）**：
