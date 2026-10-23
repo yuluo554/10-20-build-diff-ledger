@@ -65,6 +65,14 @@ report.md
 dist-release/
 release/
 
+# 二次迭代交接物（含本机绝对路径，只本地留存，不入仓）
+update/
+
+# 裸名构建产物（README/手打命令容易落成 bdiff / b1 / b2，与 D4 同根）
+/bdiff
+/b1
+/b2
+
 # ---- 说明 ----
 # 1) 唯一允许入库的归档是 data/fixtures/ 下由 tools/gen_fixtures 程序化合成的样张；
 #    任何来自真实发行版或真实构建的归档一律禁止提交。
