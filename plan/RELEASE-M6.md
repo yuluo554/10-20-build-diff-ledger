@@ -81,6 +81,20 @@
 
 ### 4.3 发布后回填
 
-- 0.1.1 的 tag、Release URL、附件 digest、回下载 `sha256sum -c` 结果，以及 CI run id，
-  在发布动作完成后回填到本节（执行记录见仓库外 `update/03-执行记录.md`）。
+| 项 | 实测值（2026-10-23） |
+|---|---|
+| tag `v0.1.1` | annotated 对象 `49eb970`，指向 commit `ce0d82a`（`git rev-parse v0.1.1^{}`） |
+| Release | https://github.com/yuluo554/10-20-build-diff-ledger/releases/tag/v0.1.1 —— 非 draft、非 prerelease，`published_at` 2026-10-23T04:11:31Z |
+| 附件 1 | `bdiff-windows-amd64.exe`，5,711,360 B，API digest `sha256:1cf09b16…e382cee1` |
+| 附件 2 | `SHA256SUMS`，90 B，API digest `sha256:5b5bc42224c174ca28c3daff8db3eedfa4e5092d87f8d9de4abc2739920be081` |
+| 三方 sha256 | 本地 `dist/` 文件 / `go build` 重出件 / GitHub 附件 digest / 回下载件的 sha256 **四个值逐字符相同**（`1cf09b16…`） |
+| 回下载校验 | 在空目录 `gh release download v0.1.1` 后直接 `sha256sum -c SHA256SUMS` → `bdiff-windows-amd64.exe: OK`，exit 0（D3 已修） |
+| 回下载件可跑 | `./bdiff-windows-amd64.exe version` → `bdiff 0.1.1` exit 0；`selftest` → 全部通过 exit 0；与本地 `dist/` 件 `cmp` 逐字节相同 |
+| CI（push main） | run `39898533419`（sha `ce0d82a`）6 job success / 66 step success / 0 failure |
+| CI（tag `v0.1.1`） | run `39898759354`（sha `ce0d82a`）同样 6 job success / 66 step / 0 failure |
+| `v0.1.0` | tag 与 Release **均未改动**（Release `published_at` 仍 2026-10-20T14:50:38Z，附件仍是 `05e7a4ef…`） |
+| GitHub topics | `["build-reproducibility","ci","diff"]`（去掉误带的 `python`） |
+| CI 残留注解 | 仅 `Node.js 20 is deprecated`（`actions/checkout@v4` / `actions/setup-go@v5`）；本轮未升级 actions，据实登记、不算已修 |
+
+**执行记录**：`update/03-执行记录.md`（仓库外，不入仓；本仓 `.gitignore` 已排除 `update/`）。
 
