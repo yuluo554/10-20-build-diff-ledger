@@ -92,6 +92,9 @@
 | 回下载件可跑 | `./bdiff-windows-amd64.exe version` → `bdiff 0.1.1` exit 0；`selftest` → 全部通过 exit 0；与本地 `dist/` 件 `cmp` 逐字节相同 |
 | CI（push main） | run `39898533419`（sha `ce0d82a`）6 job success / 66 step success / 0 failure |
 | CI（tag `v0.1.1`） | run `39898759354`（sha `ce0d82a`）同样 6 job success / 66 step / 0 failure |
+| CI（收尾提交 HEAD） | run `39899108836`（sha `bdad598`）同样 6 job success / 66 step / 0 failure |
+| Release 正文 sha 条数 | 全正文**只有 1 处** 64 位 hex，即本版产物 `1cf09b16…`；`v0.1.0` 的旧错值不再复述为字面量（改写成「两个值不同」），避免读者/机器一眼对不清哪个是本版 |
+| Release 是否 latest | 是（`releases/latest` → `v0.1.1`，非 draft 非 prerelease） |
 | `v0.1.0` | tag 与 Release **均未改动**（Release `published_at` 仍 2026-10-20T14:50:38Z，附件仍是 `05e7a4ef…`） |
 | GitHub topics | `["build-reproducibility","ci","diff"]`（去掉误带的 `python`） |
 | CI 残留注解 | 仅 `Node.js 20 is deprecated`（`actions/checkout@v4` / `actions/setup-go@v5`）；本轮未升级 actions，据实登记、不算已修 |
