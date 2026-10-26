@@ -16,8 +16,8 @@ jobs:
     name: "Layout gate (methodology binding)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: "Sprint layout gate"
@@ -34,8 +34,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         go: ["1.22", "1.24"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           cache: false
@@ -94,8 +94,8 @@ jobs:
     name: "Determinism (double build byte-equal)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.24"
           cache: false
